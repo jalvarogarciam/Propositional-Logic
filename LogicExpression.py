@@ -23,7 +23,7 @@ class LogicExpression:
 
         self.notation = {'!':'!','&':'&','|':'|','>':'>','=':'=','<':'<'}
 
-        self.__argument : LogicExpression|str|bool|int  #and subclasses
+        self.__argument : LogicExpression|str|bool|int
         self.vars: list = []
         self.type: str
 
@@ -31,10 +31,11 @@ class LogicExpression:
 
 
 
+
         if type(arg) == str: 
 
             if len(arg) > 1 : self.expr__init__(arg)
-            elif arg.isdigit() : self.bool__init__(arg)
+            elif arg.isdigit() : self.bool__init__(int(arg))
             else: self.proposition__init__(arg)
 
 
@@ -56,7 +57,6 @@ class LogicExpression:
 
         self.type = raw_expression[0]
 
-        self.find_vars(raw_expression)
 
         #BUILDS A NEW L.E. FOR ARGUMENT######################################
         
@@ -105,9 +105,9 @@ class LogicExpression:
     #Bool builder
     def bool__init__(self, true:bool|int):
 
-        self.__argument = bool(int(true))
-        self.vars.append(str(int(true)))
-        self.type = '1' if bool(int(true)) else '0'
+        self.__argument = bool(true)
+        self.vars.append(str(true))
+        self.type = '1' if bool(true) else '0'
 
     ##########################################################################
     #Copy Builder
@@ -132,16 +132,15 @@ class LogicExpression:
     #connective Builder (list)
     def connective__init__(self,le_list:list|tuple):
         self.type = le_list[0]
-        self.__argument = le_list[1:]
+        self.__argument : list[LogicExpression] = le_list[1:]
 
-        if self.type == '!': 
+        if self.type in unary_connectors: 
             self.vars = self.__argument.vars
         
-        elif self.type in binary_connectors:
+        else: #self.type in binary_connectors:
             for i in range(len(self.__argument)):
                 self.vars = set(self.vars) | set(self[i].vars)
             self.vars = list(self.vars)
-            self.vars = sorted(self.vars)
 
     ##########################################################################
     ##########################################################################
@@ -149,13 +148,15 @@ class LogicExpression:
 
     def __call__(self,vars={})->bool:
         truth : bool = False
-        
+
         if vars == {}: return self.truth_table()
 
+        #Basics
         if self.type == 'p': truth = bool(vars[self.__argument])
 
         elif self.type in ('0','1'): truth = bool(self.__argument)
 
+        #Recursivity
         elif self.type == '!': truth = not bool(self.__argument(vars))
 
         elif self.type in binary_connectors:
@@ -183,21 +184,12 @@ class LogicExpression:
 
         return (1 if truth else 0)
 
-    #
-    def find_vars(self,string:str=" "):
-
-        if string == " ": string = str(self)
-        self.vars = []
-        for i in string:
-            if (i.isalpha() or i.isdigit()) and not (i in self.vars): self.vars.append(i)
-        
-        if len(self)>1: self.vars = sorted(self.vars)
 
 
     def truth_table(self)->str:
 
         string = ('.'*20 + '\n')*2
-        self.find_vars()
+
 
         values = dict({})
         for v in self.vars: values.update({v:0})
@@ -226,7 +218,6 @@ class LogicExpression:
     
 
     def to_canonical_shape(self,on_minterms=True)->'LogicExpression':
-        self.find_vars()
         num_vars = len(self.vars)
         minterms = tuple(self.minterms())
         maxterms = tuple(set(range(2**num_vars)) - set(minterms))
@@ -264,7 +255,6 @@ class LogicExpression:
     def minterms(self)->set: return self.canonical_terms(True)
     def maxterms(self)->set: return self.canonical_terms(False)
     def canonical_terms(self,on_minterms=True):
-        self.find_vars()
 
         terms = []
 
@@ -353,8 +343,8 @@ class LogicExpression:
         else : del self.__argument[index]
 
     def __len__(self)->int:
-
-        if self.type in binary_connectors: 
+    
+        if self.type in binary_connectors:
             return len(self.__argument) #it's a list
         
         else: return 1
@@ -411,6 +401,6 @@ cadena = '((a → b) → c) → (a → (b → c))'
 expr = LogicExpression(cadena)
 
 
-print(expr())
+print(expr)
 
 

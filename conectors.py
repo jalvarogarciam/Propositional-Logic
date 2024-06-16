@@ -22,8 +22,9 @@ all_connectors = list(all_binary_connectors.keys()) + list (all_unary_connectors
 def usual_to_polish(arg:list|tuple|str, counter=0)->str:
     counter += 1
 
+    if counter == 1: arg = str(arg)
 
-    arg = list(arg)
+    arg = list((arg))
 
 
 
@@ -118,7 +119,7 @@ def usual_to_polish(arg:list|tuple|str, counter=0)->str:
 
     #FOR BINARY CONNECTIVES --> FORM P CONNTV P TO CONNTV P P
     i = 0
-    while len(expr) > 1 :
+    while len(expr) > i+1 :
         if (expr[i] in binary_connectors):   #(prop) Cnective (prop)
             expr[i-1:i+2] = [expr[i] + expr[i-1] + expr[i+1]]   #Cnective (prop) (prop)
 
@@ -131,6 +132,8 @@ def usual_to_polish(arg:list|tuple|str, counter=0)->str:
         return ("".join(expr),its_notation)
     else:
         return "".join(expr)
+
+
 
 
 
