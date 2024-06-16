@@ -331,8 +331,8 @@ class LogicExpression:
 
 
     def __getitem__(self,index): 
-        if len(self) == 1 : return LogicExpression(self.__argument)
-        else : return LogicExpression(self.__argument[index])
+        if len(self) == 1 : return (self.__argument)
+        else : return self.__argument[index]
 
     def __setitem__(self, index, value):
         if len(self) == 1 : self.__argument = LogicExpression(value)
@@ -401,6 +401,5 @@ cadena = '((a → b) → c) → (a → (b → c))'
 expr = LogicExpression(cadena)
 
 
-print(expr)
 
-
+print(len(expr))
