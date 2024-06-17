@@ -137,235 +137,6 @@ class LogicExpression:
     ##########################################################################
     ##########################################################################
 
-
-
-
-
-    def __call__(self,vars={})->bool:
-        truth : bool = False
-
-        if vars == {}: return self.truth_table()
-
-        #Basics
-        if self.type == 'p': truth = bool(vars[self.__argument])
-
-        elif self.type in ('0','1'): truth = bool(self.__argument)
-
-        #Recursivity
-        elif self.type == '!': truth = not bool(self.__argument(vars))
-
-        elif self.type in binary_connectors:
-
-            truth_list:list = self.__argument.copy()
-
-            #TURNS each argument INTO A BOOL VALUE
-            #operator __call__ -> evaluate
-            for i in range(len(truth_list)): truth_list[i] = truth_list[i](vars)
-
-            if self.type == '&':
-                truth = True
-                for i in range(len(truth_list)): truth &= truth_list[i]
-
-            elif self.type == '|':
-                truth = False
-                for i in range(len(truth_list)): truth |= truth_list[i]
-
-            elif self.type == '>':
-                truth = (not truth_list[0]) or truth_list[1]
-
-            elif self.type == '=':
-                truth = ((not truth_list[0]) or truth_list[1]) and \
-                ((not truth_list[1]) or truth_list[0])
-
-        return (1 if truth else 0)
-
-
-    def __getitem__(self,index:int)->'LogicExpression': 
-
-        if index < 0:
-            the_root = self.root
-
-            i = -1
-            while i > index and the_root != None: 
-                the_root = the_root.root
-                i-=1
-            return the_root
-
-        else:
-            if len(self) == 1 : return (self.__argument)
-            else : return self.__argument[index]
-
-    def __setitem__(self, index, value):
-        if len(self) == 1 : self.__argument = LogicExpression(value)
-        else : self.__argument[index] = LogicExpression(value)
-    
-    def __delitem__(self,index):
-        if len(self) == 1 : del self.__argument
-        else : del self.__argument[index]
-
-    def __len__(self)->int:
-    
-        if self.type in binary_connectors:
-            return len(self.__argument) #it's a list
-        
-        else: return 1
-
-
-
-
-    def truth_table(self)->str:
-
-        if len(self.vars) == 0: self.find_vars()
-
-        string = ('.'*20 + '\n')*2
-
-
-        values = dict({})
-        for v in self.vars.keys(): values.update({v:0})
-
-        num_vars = len(self.vars)
-
-        if self.type in ('1','0'):
-            string += self.type + '---> ' +self.type + '\n'
-
-        else:
-            for v in values: string += v
-            string +='\n'
-
-            for bit in range(2**num_vars):
-                bits = dec_binbol(bit,num_vars)
-                i = 0
-                for k in values.keys():
-                    values[k]=bits[i]
-                    string += str(int(bits[i]))
-                    i+=1
-                string += '---> ' + str(bool(self(values))) + '\n'
-
-        string += ('.'*20 +'\n')*2
-
-        return string
-
-
-
-    def to_canonical_shape(self,on_minterms=True)->'LogicExpression':
-
-        if len(self.vars) == 0: self.find_vars()
-        
-        if self.type.isdigit(): return LogicExpression(self)
-        num_vars = len(self.vars.keys())
-        minterms = tuple(self.minterms())
-        maxterms = tuple(set(range(2**num_vars)) - set(minterms))
-
-        terms = minterms if on_minterms else maxterms
-
-        symbol = '&' if on_minterms else '|'
-
-        vars = list(self.vars.keys())
-        le_list = []
-        for i in terms:
-            binary = dec_binbol(i,num_vars)
-
-            string = ""
-            i=0
-            if on_minterms:
-                for bit in binary:
-                    oposite = '!' if not bit else ''
-                    string += oposite + vars[i] + symbol
-                    i += 1
-            else:
-                for bit in binary:
-                    oposite = '!' if bit else ''
-                    string += oposite + vars[i] + symbol
-                    i += 1
-
-            string = '('+string[:-1]+')'
-
-            le_list.append(LogicExpression(string))
-
-        symbol = '&' if symbol=='|' else '|'
-        le_list.insert(0,symbol)
-
-        copy = LogicExpression(le_list) if len(le_list) > 1 else LogicExpression(str(self))
-
-        return copy
-
-    def minterms(self)->set: return self.canonical_terms(True)
-    def maxterms(self)->set: return self.canonical_terms(False)
-    def canonical_terms(self,on_minterms=True):
-
-        if len(self.vars) == 0: self.find_vars()
-
-        terms = []
-
-        values = dict({})
-        for v in self.vars.keys(): values.update({v:0})
-
-        num_vars = len(self.vars.keys())
-
-        for bit in range(2**num_vars):
-
-            bits = dec_binbol(bit,num_vars)
-
-            i = 0
-            for k in values.keys():
-                values[k]=bits[i]
-                i+=1
-
-            if on_minterms:
-                if self(values): terms.append(bit)
-            else: 
-                if not self(values): terms.append(bit)
-        
-        return set(terms)
-
-
-
-    def check_neutral_and_dominant(self):
-        i=0
-        while i < (len(self)):
-
-            if self[i].type == ('0'):
-
-                if self.type == '|': 
-                    del self[i]
-                    if len(self) == 1: self.copy__init__(self.__argument[0])
-
-                elif self.type == '&':
-                    self.bool__init__(0)
-                
-                elif self.type == '>' and i==0:
-                    self.bool__init__(1)
-
-            elif self[i].type == ('1'):
-
-                if self.type == '&': 
-                    del self[i]
-                    if len(self) == 1: self.copy__init__(self.__argument[0])
-
-                elif self.type == '|':
-                    self.bool__init__(1)
-            i+=1
-
-    def asociate(self):
-        if self.type not in ('|','&'): return None
-
-        term_index = 0
-
-        for x in range(len(self)):
-
-            if self[term_index].type == self.type:
-
-                lenght = len(self[term_index])
-
-                i = lenght - 1
-                while i >= 0:
-                    self.__argument.insert(term_index+1, self[term_index][i])
-                    i-=1
-                del self[term_index]
-                term_index += lenght
-        
-            else: term_index += 1
-
     def find_vars(self):
         if self.type == 'p':    self.vars[self.__argument] = 0
         elif self.type in connectors:
@@ -374,6 +145,9 @@ class LogicExpression:
                 self.vars = {**self.vars, **self[i].vars}
 
 
+    ###########################################################################
+    #OPERATORS
+    ###########################################################################
     #Arithmetic operators
     def __add__(self, other) ->'LogicExpression':
         return LogicExpression(['|', self, other])
@@ -419,8 +193,241 @@ class LogicExpression:
         return not self.istautology()
     def iscontingent(self)->bool:
         return self.isrefutable() and self.issatisfacible()
-    
 
+    def __len__(self)->int:
+    
+        if self.type in binary_connectors:
+            return len(self.__argument) #it's a list
+        
+        else: return 1
+
+    ########Items
+    def __getitem__(self,index:int)->'LogicExpression': 
+
+        if index < 0:
+            the_root = self.root
+            i = -1
+            while i > index and the_root != None: 
+                the_root = the_root.root
+                i-=1
+            return the_root
+
+        else:
+            if len(self) == 1 : return (self.__argument)
+            else : return self.__argument[index]
+
+    def __setitem__(self, index, value):
+        if len(self) == 1 : self.__argument = LogicExpression(value)
+        else : self.__argument[index] = LogicExpression(value)
+
+    def __delitem__(self,index):
+        if len(self) == 1 : del self.__argument
+        else : del self.__argument[index]
+    ##########################################################################
+    ###########################################################################
+
+
+    #Main propperties##########################################################
+    def check_neutral_and_dominant(self):
+        i=0
+        while i < (len(self)):
+
+            if self[i].type == ('0'):
+
+                if self.type == '|': 
+                    del self[i]
+                    if len(self) == 1: self.copy__init__(self.__argument[0])
+
+                elif self.type == '&':
+                    self.bool__init__(0)
+                
+                elif self.type == '>' and i==0:
+                    self.bool__init__(1)
+
+            elif self[i].type == ('1'):
+
+                if self.type == '&': 
+                    del self[i]
+                    if len(self) == 1: self.copy__init__(self.__argument[0])
+
+                elif self.type == '|':
+                    self.bool__init__(1)
+            i+=1
+
+    def asociate(self):
+        if self.type not in ('|','&'): return None
+
+        term_index = 0
+
+        for x in range(len(self)):
+
+            if self[term_index].type == self.type:
+
+                lenght = len(self[term_index])
+
+                i = lenght - 1
+                while i >= 0:
+                    self.__argument.insert(term_index+1, self[term_index][i])
+                    i-=1
+                del self[term_index]
+                term_index += lenght
+        
+            else: term_index += 1
+    ###########################################################################
+
+
+
+    #Truth values#############################################################
+    def __call__(self,vars={})->bool:
+        truth : bool = False
+
+        if vars == {}: return self.truth_table()
+
+        #Basics
+        if self.type == 'p': truth = bool(vars[self.__argument])
+
+        elif self.type in ('0','1'): truth = bool(self.__argument)
+
+        #Recursivity
+        elif self.type == '!': truth = not bool(self.__argument(vars))
+
+        elif self.type in binary_connectors:
+
+            truth_list:list = self.__argument.copy()
+
+            #TURNS each argument INTO A BOOL VALUE
+            #operator __call__ -> evaluate
+            for i in range(len(truth_list)): truth_list[i] = truth_list[i](vars)
+
+            if self.type == '&':
+                truth = True
+                for i in range(len(truth_list)): truth &= truth_list[i]
+
+            elif self.type == '|':
+                truth = False
+                for i in range(len(truth_list)): truth |= truth_list[i]
+
+            elif self.type == '>':
+                truth = (not truth_list[0]) or truth_list[1]
+
+            elif self.type == '=':
+                truth = ((not truth_list[0]) or truth_list[1]) and \
+                ((not truth_list[1]) or truth_list[0])
+
+        return (1 if truth else 0)
+
+
+    def truth_table(self)->str:
+
+        if len(self.vars) == 0: self.find_vars()
+
+        string = ('.'*20 + '\n')*2
+
+
+        values = dict({})
+        for v in self.vars.keys(): values.update({v:0})
+
+        num_vars = len(self.vars)
+
+        if self.type in ('1','0'):
+            string += self.type + '---> ' +self.type + '\n'
+
+        else:
+            for v in values: string += v
+            string +='\n'
+
+            for bit in range(2**num_vars):
+                bits = dec_binbol(bit,num_vars)
+                i = 0
+                for k in values.keys():
+                    values[k]=bits[i]
+                    string += str(int(bits[i]))
+                    i+=1
+                string += '---> ' + str(bool(self(values))) + '\n'
+
+        string += ('.'*20 +'\n')*2
+
+        return string
+
+    ###########################################################################
+
+    def to_canonical_shape(self,on_minterms=True)->'LogicExpression':
+
+        if len(self.vars) == 0: self.find_vars()
+        
+        if self.type.isdigit(): return LogicExpression(self)
+        num_vars = len(self.vars.keys())
+        minterms = tuple(self.minterms())
+        maxterms = tuple(set(range(2**num_vars)) - set(minterms))
+
+        terms = minterms if on_minterms else maxterms
+
+        symbol = '&' if on_minterms else '|'
+
+        vars = list(self.vars.keys())
+        le_list = []
+        for i in terms:
+            binary = dec_binbol(i,num_vars)
+
+            string = ""
+            i=0
+            if on_minterms:
+                for bit in binary:
+                    oposite = '!' if not bit else ''
+                    string += oposite + vars[i] + symbol
+                    i += 1
+            else:
+                for bit in binary:
+                    oposite = '!' if bit else ''
+                    string += oposite + vars[i] + symbol
+                    i += 1
+
+            string = '('+string[:-1]+')'
+
+            le_list.append(LogicExpression(string))
+
+        symbol = '&' if symbol=='|' else '|'
+        le_list.insert(0,symbol)
+
+        copy = LogicExpression(le_list) if len(le_list) > 1 else LogicExpression(str(self))
+
+        return copy
+
+
+    # Minterms / Maxterms######################################################
+    def minterms(self)->set: return self.canonical_terms(True)
+    def maxterms(self)->set: return self.canonical_terms(False)
+    def canonical_terms(self,on_minterms=True):
+
+        if len(self.vars) == 0: self.find_vars()
+
+        terms = []
+
+        values = dict({})
+        for v in self.vars.keys(): values.update({v:0})
+
+        num_vars = len(self.vars.keys())
+
+        for bit in range(2**num_vars):
+
+            bits = dec_binbol(bit,num_vars)
+
+            i = 0
+            for k in values.keys():
+                values[k]=bits[i]
+                i+=1
+
+            if on_minterms:
+                if self(values): terms.append(bit)
+            else: 
+                if not self(values): terms.append(bit)
+        
+        return set(terms)
+    ###########################################################################
+
+
+
+    #CASTING##################################################################
     def __bool__(self)->bool:
         return self.istautology()
     
@@ -468,7 +475,7 @@ class LogicExpression:
             string = "".join(string)
 
         return string
-
+    ##########################################################################
 
 
 
