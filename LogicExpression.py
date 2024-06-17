@@ -126,14 +126,13 @@ class LogicExpression:
     #connective Builder (list)
     def connective__init__(self,le_list:list|tuple):
         self.type = le_list[0]
-        self.__argument : list[LogicExpression] = le_list[1:]
+        self.__argument = []
 
         if self.type in unary_connectors: 
-            self.vars = self.__argument.vars.copy()
+            self.__argument = LogicExpression(le_list[1])
         
         else: #self.type in binary_connectors:
-            for i in range(len(self.__argument)):
-                self.vars = {**self.vars,  **self[i].vars}
+            for le in le_list[1:]:   self.__argument.append(LogicExpression(le))
 
     ##########################################################################
     ##########################################################################
@@ -211,50 +210,6 @@ class LogicExpression:
         
         else: return 1
 
-    def __str__(self)->str:
-
-        string = ""
-
-
-        if self.type in binary_connectors:
-        
-            for i in range(len(self)):
-
-                string += str(self[i]) + ' ' + self.type + ' '
-
-            string = '(' + string[:-3] + ')' # adds () and removes the last connective
-            
-
-        if self.type in unary_connectors:
-        
-            if self.__argument.type == 'p':
-                string += self.type + str(self.__argument)
-        
-            elif self.__argument.type in ('0','1'): 
-                string+= str(int(not bool(self[0][0])))
-
-            elif len(self.__argument) > 1:
-                string += self.type + '(' + str(self.__argument) + ')'
-        
-        elif self.type in ('p','0','1'):
-            string += self.__argument if self.type == 'p' else \
-                        str(int(self.__argument))
-
-
-        #TURNS CONNECTIVES IN ITS INITIAL NOTATION
-        if self.counter == 1 and type(self.__argument) not in (str, bool, int):
-            string = list(string)
-
-            for i in range(len(string)):
-
-                if string[i] in self.notation.keys():
-                    string[i] = self.notation[string[i]]
-
-            string = string[1:-1]   #DELETE PARENTHESES (...)
-
-            string = "".join(string)
-
-        return string
 
 
 
@@ -419,11 +374,109 @@ class LogicExpression:
                 self.vars = {**self.vars, **self[i].vars}
 
 
+    #Arithmetic operators
+    def __add__(self, other) ->'LogicExpression':
+        return LogicExpression(['|', self, other])
+    def __or__(self, other) ->'LogicExpression': return self + other
+    
+    def __mul__(self, other) ->'LogicExpression':
+        return LogicExpression(['&', self, other])
+    def __and__(self, other) ->'LogicExpression': return self * other
+
+    def __xor__(self, other) ->'LogicExpression':
+        return (-self * (other)) + (self * (-other))
+
+    def __sub__(self, other) ->'LogicExpression': return self * -(self*other)
+
+    def __neg__(self) ->'LogicExpression':
+        return LogicExpression(['!', self])
+    def __invert__(self) ->'LogicExpression': return - self
+
+    #Relational operators
+    def __eq__ (self, other)->bool:
+        return self.minterms() == other.minterms()
+    def __ne__ (self, other)->bool:
+        return not self == other
+    def __le__ (self, other)->bool:
+        return self in other
+    def __ge__ (self, other)->bool:
+        return other in self
+    def __lt__ (self, other)->bool:
+        return not self >= other
+    def __gt__ (self, other)->bool:
+        return not self <= other
+    def __contains__(self, other)->bool:
+        return self.minterms().issuperset(other.minterms())
+    
+
+    def istautology(self)->bool:
+        return len(self.maxterms()) == 0
+    def iscontradiction(self)->bool:
+        return len(self.minterms()) == 0
+    def issatisfacible(self)->bool:
+        return not self.iscontradiction()
+    def isrefutable(self)->bool:
+        return not self.istautology()
+    def iscontingent(self)->bool:
+        return self.isrefutable() and self.issatisfacible()
+    
+
+    def __bool__(self)->bool:
+        return self.istautology()
+    
+    def __str__(self)->str:
+
+        string = ""
+
+
+        if self.type in binary_connectors:
+        
+            for i in range(len(self)):
+
+                string += str(self[i]) + ' ' + self.type + ' '
+
+            string = '(' + string[:-3] + ')' # adds () and removes the last connective
+            
+
+        if self.type in unary_connectors:
+        
+            if self.__argument.type == 'p':
+                string += self.type + str(self.__argument)
+        
+            elif self.__argument.type in ('0','1'): 
+                string+= str(int(not bool(self[0][0])))
+
+            elif len(self.__argument) > 1:
+                string += self.type + '(' + str(self.__argument) + ')'
+        
+        elif self.type in ('p','0','1'):
+            string += self.__argument if self.type == 'p' else \
+                        str(int(self.__argument))
+
+
+        #TURNS CONNECTIVES IN ITS INITIAL NOTATION
+        if self.counter == 1 and type(self.__argument) not in (str, bool, int):
+            string = list(string)
+
+            for i in range(len(string)):
+
+                if string[i] in self.notation.keys():
+                    string[i] = self.notation[string[i]]
+
+            string = string[1:-1]   #DELETE PARENTHESES (...)
+
+            string = "".join(string)
+
+        return string
 
 
 
-cadena = 0
 
-expr = LogicExpression(0)
 
-print(expr.to_canonical_shape())
+cadena = "a+b"
+
+expr1 = LogicExpression("a+b+c")
+expr2 = LogicExpression("a+!a")
+
+print(bool(expr2))
+
