@@ -16,7 +16,7 @@ class LogicExpression:
     def __init__(self, arg:str, root:"LogicExpression" = None, counter=0):
         self.counter = counter + 1     #strange things about recursibity
 
-        self.root = root
+        self.root = root if type(root) != type(None) else self
 
         self.notation = {'!':'!','&':'&','|':'|','>':'>','=':'=','<':'<'}
 
@@ -138,12 +138,18 @@ class LogicExpression:
     ##########################################################################
 
     def find_vars(self):
-        if self.type == 'p':    self.vars[self.__argument] = 0
+        self.vars = dict({})
+        leafs = [] 
+        self.get_leafs(leafs)
+
+        for leaf in leafs:
+            if leaf[0] not in self.vars:    self.vars[leaf[0]] = 0
+
+    def get_leafs(self, leafs:list=[])->list['LogicExpression']:
+        if self.type == 'p':    leafs.append(self)
         elif self.type in connectors:
             for i in range (len(self)):
-                self[i].find_vars()
-                self.vars = {**self.vars, **self[i].vars}
-
+                self[i].get_leafs(leafs)
 
     ###########################################################################
     #OPERATORS
@@ -207,7 +213,7 @@ class LogicExpression:
         if index < 0:
             the_root = self.root
             i = -1
-            while i > index and the_root != None: 
+            while i > index and the_root != the_root.root: 
                 the_root = the_root.root
                 i-=1
             return the_root
@@ -477,13 +483,4 @@ class LogicExpression:
         return string
     ##########################################################################
 
-
-
-
-cadena = "a+b"
-
-expr1 = LogicExpression("a+b+c")
-expr2 = LogicExpression("a+!a")
-
-print(bool(expr2))
 
