@@ -287,7 +287,7 @@ class LogicExpression:
     def __call__(self,vars={})->bool:
         truth : bool = False
 
-        if vars == {}: return self.truth_table()
+        if vars == {}: return self.truth_board()
 
         #Basics
         if self.type == 'p': truth = bool(vars[self.__argument])
@@ -323,11 +323,11 @@ class LogicExpression:
         return (1 if truth else 0)
 
 
-    def truth_table(self)->str:
+    def truth_board(self)->tuple:
 
         if len(self.vars) == 0: self.find_vars()
 
-        string = ('.'*20 + '\n')*2
+        board = []
 
 
         values = dict({})
@@ -336,24 +336,20 @@ class LogicExpression:
         num_vars = len(self.vars)
 
         if self.type in ('1','0'):
-            string += self.type + '---> ' +self.type + '\n'
+            board.append([self.type, bool(int(self.type))])
 
         else:
-            for v in values: string += v
-            string +='\n'
-
             for bit in range(2**num_vars):
                 bits = dec_binbol(bit,num_vars)
                 i = 0
+                board.append([[]])
                 for k in values.keys():
                     values[k]=bits[i]
-                    string += str(int(bits[i]))
+                    board[bit][0].append(str(int(bits[i])))
                     i+=1
-                string += '---> ' + str(bool(self(values))) + '\n'
+                board[bit].append(str(bool(self(values))))
 
-        string += ('.'*20 +'\n')*2
-
-        return string
+        return (self.vars.keys(), board)
 
     ###########################################################################
 
