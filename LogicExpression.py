@@ -329,7 +329,6 @@ class LogicExpression:
 
         board = []
 
-
         values = dict({})
         for v in self.vars.keys(): values.update({v:0})
 
