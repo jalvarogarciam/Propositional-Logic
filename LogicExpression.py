@@ -78,6 +78,23 @@ class LogicExpression:
             self.__argument = [LogicExpression(raw_expression[1:i], self, self.counter), \
                                 LogicExpression(raw_expression[i:], self, self.counter)]
 
+            if self.type in ('↚', '↛', '⊕', '↑', '↓'):
+
+                if self.type == '⊕':
+                    self = not LogicExpression(['=',self[0], self[1]])
+
+                elif self.type == '↛':
+                    self = not LogicExpression(['>',self[0], self[1]])
+
+                elif self.type == '↚':
+                    self = not LogicExpression(['<',self[0], self[1]])
+
+                elif self.type == '↑':
+                    self = not LogicExpression(['&',self[0], self[1]])
+
+                elif self.type == '↓':
+                    self = not LogicExpression(['|',self[0], self[1]])
+
             #ASOCIATIVE PROPERTY
             self.asociate()
 
@@ -279,6 +296,21 @@ class LogicExpression:
                 term_index += lenght
         
             else: term_index += 1
+    
+
+    def de_morgan(self):
+
+        if self.type == '!':
+            if self[0].type == '|':
+                for i in range(len(self.__argument)):
+                    self[i] = not LogicExpression(self[i], self, self[i].counter)
+                ...
+            elif self[0].type == '&':
+                ...
+        elif self.type == '|':
+            ...
+        elif self.type == '&':
+            ...
     ###########################################################################
 
 

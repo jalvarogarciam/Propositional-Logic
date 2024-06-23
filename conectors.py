@@ -1,12 +1,13 @@
 DEBUG = [False,False,True,False,False]
 
 #Conectivas binarias
-binary_connectors= ['&','|','>','=','<']
+binary_connectors= ['&','|','>','=','<', '↚', '↛', '⊕', '↑', '↓']
 all_binary_connectors= {
     '∨':'|', '+':'|', '||':'|', '|':'|',
     '∧':'&', '&&':'&', '&':'&', '*':'&',
     '→':'>','>':'>','←':'<', '<':'<',
-    '↔':'=','=':'='
+    '↔':'=','=':'=',
+    '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'
 }
 
 #Conectivas unarias

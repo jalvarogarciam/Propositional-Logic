@@ -30,11 +30,32 @@ class Panel(ft.Row):
     def __init__(self):
         super().__init__()
 
-        self.formula = ft.TextField(hint_text="FORMULA", color=ft.colors.GREEN, width=350)
-        self.values = ft.TextField(hint_text="values {}", color="red", width=150)
-        self.order = ft.TextField(hint_text="order", color="yellow", width=150)
-        self.classification = ft.TextField(hint_text="classification", color="red", width=150, disabled=True)
-        self.interpretation = ft.TextField(hint_text="interpretation", color="red", width=200, disabled=True)
+        self.formula = ft.TextField(
+            hint_text="FORMULA", expand=False,
+            autofocus=True, on_focus=self.on_focus,
+            filled=True, fill_color=ft.colors.WHITE70,
+            width=350, cursor_color=ft.colors.BLACK,
+            text_style=ft.TextStyle( 
+                color=ft.colors.BLACK, 
+                weight=ft.FontWeight.BOLD 
+            )
+        )
+        self.values = ft.TextField(
+            hint_text="values {}", text_align='center',
+            color="yellow", width=150
+        )
+        self.order = ft.TextField(
+            hint_text="order", text_align='center',
+            color="yellow", width=150
+        )
+        self.classification = ft.TextField(
+            hint_text="classification", 
+            color="red", width=150, disabled=True
+        )
+        self.interpretation = ft.TextField(
+            hint_text="interpretation", 
+            color="red", width=200, disabled=True
+        )
         self.connective_buttons = ft.Column(
             controls=[
                 ft.Row(
@@ -57,12 +78,18 @@ class Panel(ft.Row):
                 ),
                 ft.Row(
                     controls=[
-                        ConnectiveButton(text="1", button_clicked=self.button_clicked, 
-                                         width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK),
-                        ConnectiveButton(text="¬", button_clicked=self.button_clicked, 
-                                         width=110, color=ft.colors.BLACK),
-                        ConnectiveButton(text="0", button_clicked=self.button_clicked, 
-                                         width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK),
+                        ConnectiveButton(
+                            text="1", button_clicked=self.button_clicked, 
+                            width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK
+                        ),
+                        ConnectiveButton(
+                            text="¬", button_clicked=self.button_clicked, 
+                            width=110, color=ft.colors.BLACK, bgcolor='purple',
+                        ),
+                        ConnectiveButton(
+                            text="0", button_clicked=self.button_clicked, 
+                            width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK
+                        ),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER
                 )
@@ -71,13 +98,12 @@ class Panel(ft.Row):
         )
 
 
-
         self.controls = [
             ft.Column(
                 controls=[
                     self.order, 
                     ft.ElevatedButton(
-                        "↓classify↓", 
+                        text="↓classify↓", 
                         color='yellow', 
                         on_click=self.button_clicked,
                         width=150
@@ -98,7 +124,7 @@ class Panel(ft.Row):
                     self.values,
                     ft.ElevatedButton(
                         "↓interpret↓", 
-                        color='red', 
+                        color='yellow', 
                         on_click=self.button_clicked,
                         width=150
                     ),
@@ -109,6 +135,11 @@ class Panel(ft.Row):
         ]
 
 
+    def on_focus(self, e):
+        # Obtener el TextField y mover el cursor al final del texto
+        text_field = e.control
+        text_field.cursor_position = len(text_field.value)
+        self.update()
 
     def button_clicked(self, e):
         data = e.control.data
@@ -119,11 +150,20 @@ class Panel(ft.Row):
 
         if data in ("∧", "∨", "→", "←", "↔", '↑', '↚', '↛', '↓', '⊕', '1', '0', '¬'): 
             self.formula.value += data
-            self.update()
+            # Actualizar el campo de texto
+            self.formula.update()
+            # Mover el cursor al final del texto después de actualizar el valor
+            self.formula.cursor_position = len(self.formula.value)-1
+            self.formula.focus()
+            self.formula.update()
 
-        elif not self.formula.value:
-            self.reset()
-            self.update()
+        else:
+            if not self.formula.value:
+                self.formula.error_text = "Please, enter a logic formula"
+                self.formula.update()
+                self.formula.value = "Error"
+            else:
+                ...
 
     def reset(self):
         self.formula.value = ""
