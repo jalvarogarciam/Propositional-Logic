@@ -82,32 +82,32 @@ class LogicExpression:
             #It's the same algorithm that we use to check if a polish expr is correct
             in_range,i = 1,1
             while in_range != 0 :
-                if raw_expression[i] in binary_connectors: 
-                    in_range+=1
-                    
+                if raw_expression[i] in binary_connectors: in_range+=1
+
                 elif raw_expression[i] not in unary_connectors: in_range-=1
+
                 i+=1
 
-            #ARGUMENT BUILDINT
+            #ARGUMENT BUILDING
             self.__argument = [LogicExpression(raw_expression[1:i], self), \
                                 LogicExpression(raw_expression[i:], self)]
 
             if self.type in ('↚', '↛', '⊕', '↑', '↓'):
 
                 if self.type == '⊕':
-                    self = - LogicExpression(['=', self[0], self[1]])
+                    self.copy(- LogicExpression(['=', self[0], self[1]]))
 
                 elif self.type == '↛':
-                    self = - LogicExpression(['>',self[0], self[1]])
+                    self.copy( - LogicExpression(['>',self[0], self[1]]))
 
                 elif self.type == '↚':
-                    self = - LogicExpression(['<',self[0], self[1]])
+                    self.copy( - LogicExpression(['>',self[1], self[0]]))
 
                 elif self.type == '↑':
-                    self = - LogicExpression(['&',self[0], self[1]])
+                    self.copy( - LogicExpression(['&',self[0], self[1]]))
 
                 elif self.type == '↓':
-                    self = - LogicExpression(['|',self[0], self[1]])
+                    self.copy( - LogicExpression(['|',self[0], self[1]]))
 
             #SOLVES NOT NOT
             self.not_not()
@@ -205,6 +205,8 @@ class LogicExpression:
         return super_leafs
 
     def change_vars(self, changes:dict):
+        if len(changes) < len(self.vars) : return None
+
         leafs = self.get_leafs()
         self.find_vars(leafs)
 
@@ -215,7 +217,7 @@ class LogicExpression:
             self.vars.update(changes)
             new_vars = self.vars.copy()
 
-        #if len(changes) < len(self.vars) ----> out
+        
 
         elif type(changes) in (list, tuple) and len(changes) >= len(self.vars):
             #Add each new_var whith the new name as value
@@ -234,8 +236,33 @@ class LogicExpression:
             leaf.__argument = new_vars[leaf.__argument]
 
         self.vars = dict({})
-        for value in new_vars:
+        for value in new_vars.values():
             self.vars[value] = value
+
+    def add_var(self, amount=1):
+        i = 0
+        while i < amount:
+            var = random.choice(variables)
+            if var not in self.vars:
+                self.vars[var] = var
+                i+=1
+
+    def unify(self, other, modifying=False) -> tuple:
+        #takes the smallest le
+        little = self if len(self.vars) < len(other.vars) else other
+        big = other if little is self else self
+
+        #creates a new le adding necessary vars to compare
+        new = LogicExpression(little)
+        new.change_vars(big.vars)
+
+        if modifying:   little.copy(new)
+
+        #changes the necesary references
+        if little is self: self = new
+        else: other = new
+
+        if not modifying: return (self, other)
         
     ###########################################################################
     #OPERATORS
@@ -262,9 +289,10 @@ class LogicExpression:
 
     #Relational operators
     def __eq__ (self, other)->bool:
-        return self.minterms() == other.minterms()
+        return len(self.vars) == len(other.vars) and self.minterms() == other.minterms() 
     def __ne__ (self, other)->bool:
         return not self == other
+
     def __le__ (self, other)->bool:
         return self in other or other == self
     def __ge__ (self, other)->bool:
@@ -273,7 +301,10 @@ class LogicExpression:
         return self in other
     def __gt__ (self, other)->bool:
         return other in self
+
     def __contains__(self, other)->bool:
+        if len(self.vars) - len(other.vars) != 0:
+            self, other = self.unify(other)
         return self.minterms().issuperset(other.minterms())
     
 

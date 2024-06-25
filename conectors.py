@@ -39,7 +39,7 @@ def usual_to_polish(arg:list|tuple|str, counter=0)->str:
 
 
         #Unify the notation and save it
-        its_notation = {'!':'!','&':'&','|':'|','>':'>','=':'=','<':'<'}
+        its_notation = {'!':'!','&':'&','|':'|','>':'>','=':'=','<':'<', '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'}
         i=0
         while i < len(arg)-1:
 
