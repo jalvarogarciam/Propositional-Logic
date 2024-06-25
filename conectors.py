@@ -19,7 +19,7 @@ all_unary_connectors= {
 connectors = list(binary_connectors) + list (unary_connectors)
 all_connectors = list(all_binary_connectors.keys()) + list (all_unary_connectors.keys())
 
-
+variables = "qwertyuiopasdfghjklzxcvbnm"
 def usual_to_polish(arg:list|tuple|str, counter=0)->str:
     counter += 1
 
