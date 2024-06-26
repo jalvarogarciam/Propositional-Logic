@@ -1,5 +1,5 @@
 from conectors import usual_to_polish, unary_connectors, binary_connectors, connectors, DEBUG, \
-dec_binbol, all_connectors, variables
+dec_binbol, all_connectors, variables, notation_out
 
 
 from copy import deepcopy
@@ -22,7 +22,7 @@ class LogicExpression:
 
 
         self.__argument : LogicExpression|str|bool|int
-        self.vars: dict = dict({})
+        self.vars: list = []
         self.type: str
 
 
@@ -48,7 +48,7 @@ class LogicExpression:
     def proposition__init__(self, proposition:str|list|tuple):
 
         self.__argument = str(proposition)    #always is a char
-        self.vars = {proposition:proposition}
+        self.vars = [proposition]
         self.type = 'p'
 
     ##########################################################################
@@ -91,7 +91,7 @@ class LogicExpression:
 
             #ARGUMENT BUILDING
             self.__argument = [LogicExpression(raw_expression[1:i], self), \
-                                LogicExpression(raw_expression[i:], self)]
+                               LogicExpression(raw_expression[i:], self)]
 
             if self.type in ('↚', '↛', '⊕', '↑', '↓'):
 
@@ -123,6 +123,8 @@ class LogicExpression:
         
         else: #self.type in binary_connectors:
             for le in le_list[1:]:   self.__argument.append(LogicExpression(le, self))
+
+        #vars???????????????????????????
 
 
     ##########################################################################
@@ -159,15 +161,17 @@ class LogicExpression:
     ##########################################################################
     def take_vars(self):
         for i in range(len(self)):
-            self.vars.update((self[i]).vars)
+            for i in self[i].vars:
+                if i not in self.vars: self.vars += [i]
 
     def find_vars(self, leafs=[]):
-        self.vars = dict({})
+        self.vars = []
+
         leafs = self.get_leafs() if len(leafs) == 0 else leafs
 
         for leaf in leafs:
             if leaf.type == 'p' and leaf.__argument not in self.vars:
-                self.vars[leaf.__argument] = leaf.__argument
+                self.vars += leaf.__argument
 
     def get_leafs(self)->list['LogicExpression']:
         leafs = []
@@ -195,6 +199,7 @@ class LogicExpression:
 
         return super_leafs
 
+
     #if changes is a dictionary, it will change (or add) the specified vars
     #if changes is a tuple or list, it will be the new vars
     #PRE: vars have been taken
@@ -203,24 +208,27 @@ class LogicExpression:
 
         leafs = self.get_leafs()
 
+        new_vars = {i:i for i in self.vars}
+
         #creates the dictionary whith old_var_name:new_var_name
         if type(changes) == dict:
-            self.vars.update(changes)
+            new_vars.update(changes)
 
         elif type(changes) in (list, tuple) and len(changes) >= len(self.vars):
             #Add each new_var whith new items
             j=0
-            for key in self.vars:
-                self.vars[key] = changes[j]
+            for key in new_vars:
+                new_vars[key] = changes[j]
                 j+=1
 
         #changes the vars from the leafs
         for leaf in leafs:
-            if leaf.type == 'p': leaf.__argument = self.vars[leaf.__argument]
+            if leaf.type == 'p': leaf.__argument = new_vars[leaf.__argument]
 
         #updates self vars
-        values = changes if type(changes) != dict else changes.values()
-        self.vars = {value:value for value in values}
+        if type(changes) in (tuple, list): self.vars = {value for value in changes}
+        elif type(changes) == dict : self.vars = [value for value in changes.values()]
+
 
     # adds {amount} random vars, default 1
     def add_var(self, amount=1):
@@ -228,12 +236,12 @@ class LogicExpression:
         while i < amount:
             var = random.choice(variables)
             if var not in self.vars:
-                self.vars[var] = var
+                self.vars += [var]
                 i+=1
 
     # unifies the vars (order, names, and amount).
     def unify(self, other, modifying=False) -> tuple:
-        if self.vars == other.vars and tuple(self.vars.keys()) == tuple(self.vars.keys()): 
+        if self.vars == other.vars : 
             return self, other #if they have the same vars and vars have the same order
 
         #takes the smallest le
@@ -242,7 +250,7 @@ class LogicExpression:
 
         #creates a new le adding necessary vars to compare
         new = LogicExpression(little)
-        new.change_vars(big.vars.keys())
+        new.change_vars(big.vars)
 
         #changes the necesary references
         if little is self: self = new
@@ -252,8 +260,8 @@ class LogicExpression:
         return ([self, other])
     
     def order(self, *order)->tuple:
-        if len(order) != 0: self.vars = { i:i for i in order}
-        return tuple(self.vars.keys())
+        if len(order) != 0: self.vars = [i for i in order]
+        return tuple(self.vars)
     ###########################################################################
     #OPERATORS
     ###########################################################################
@@ -352,11 +360,11 @@ class LogicExpression:
         
         #ASOCIATIVE PROPERTY
         self.asociate()
-
+        
         #REDUCES EACH < TO A >
         if self.type == '<':
             self.type = '>'
-            self[0], self[1] = self[1], self[0]
+            self.__argument[0], self.__argument[1] = self.__argument[1], self.__argument[0]
 
         #simplify 0's and 1's
         self.check_neutral_and_dominant()
@@ -546,7 +554,7 @@ class LogicExpression:
         board = []
 
         values = dict({})
-        for v in self.vars.keys(): values.update({v:0})
+        for v in self.vars: values.update({v:0})
 
         num_vars = len(self.vars)
 
@@ -564,7 +572,7 @@ class LogicExpression:
                     i+=1
                 board[bit].append(str(bool(self(values))))
 
-        return (tuple(self.vars.keys()), board)
+        return (tuple(self.vars), board)
 
     ###########################################################################
 
@@ -583,7 +591,6 @@ class LogicExpression:
 
         symbol = '&' if on_minterms else '|'
 
-        vars = list(self.vars.keys())
         le_list = []
         for i in terms:
             binary = dec_binbol(i,num_vars)
@@ -593,12 +600,12 @@ class LogicExpression:
             if on_minterms:
                 for bit in binary:
                     oposite = '!' if not bit else ''
-                    string += oposite + vars[i] + symbol
+                    string += oposite + self.vars[i] + symbol
                     i += 1
             else:
                 for bit in binary:
                     oposite = '!' if bit else ''
-                    string += oposite + vars[i] + symbol
+                    string += oposite + self.vars[i] + symbol
                     i += 1
 
             string = '('+string[:-1]+')'
@@ -623,9 +630,9 @@ class LogicExpression:
         terms = []
 
         values = dict({})
-        for v in self.vars.keys(): values.update({v:0})
+        for v in self.vars: values.update({v:0})
 
-        num_vars = len(self.vars.keys())
+        num_vars = len(self.vars)
 
         for bit in range(2**num_vars):
 
@@ -647,9 +654,11 @@ class LogicExpression:
 
 
     #CASTING##################################################################
+
     def __bool__(self)->bool:
         return self.istautology()
-    
+
+
     def __str__(self)->str:
 
         string = ""
@@ -664,19 +673,27 @@ class LogicExpression:
             
 
         if self.type in unary_connectors:
-        
-            if self.__argument.type == 'p':
+
+            if self[0].type == 'p':
                 string += self.type + str(self.__argument)
-        
-            elif self.__argument.type in ('0','1'): 
-                string+= str(int(not bool(self[0][0])))
+
+            elif self[0].type in ('0','1'): 
+                string+= str(int(not bool(self[0].__argument)))
 
             elif len(self.__argument) > 1:
-                string += self.type + '(' + str(self.__argument) + ')'
+                string += self.type + '(' + str(self[0]) + ')'
         
         elif self.type in ('p','0','1'):
-            string += self.__argument if self.type == 'p' else \
-                        str(int(self.__argument))
+            string += self.__argument if self.type == 'p' else str(int(self.__argument))
+        
+        #for roots
+        if self.root is self:
+            string = string[1:-1]   #delete parentheses
+            string = list(string)
+            for i in range(len(string)):
+                if string[i] in notation_out: string[i] = notation_out[string[i]]
+            string = "".join(string)
+
 
         return string
     ##########################################################################
