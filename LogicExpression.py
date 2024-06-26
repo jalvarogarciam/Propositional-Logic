@@ -93,22 +93,7 @@ class LogicExpression:
             self.__argument = [LogicExpression(raw_expression[1:i], self), \
                                LogicExpression(raw_expression[i:], self)]
 
-            if self.type in ('↚', '↛', '⊕', '↑', '↓'):
-
-                if self.type == '⊕':
-                    self.copy(- LogicExpression(['=', self[0], self[1]]))
-
-                elif self.type == '↛':
-                    self.copy( - LogicExpression(['>',self[0], self[1]]))
-
-                elif self.type == '↚':
-                    self.copy( - LogicExpression(['>',self[1], self[0]]))
-
-                elif self.type == '↑':
-                    self.copy( - LogicExpression(['&',self[0], self[1]]))
-
-                elif self.type == '↓':
-                    self.copy( - LogicExpression(['|',self[0], self[1]]))
+            if self.type in ('↚', '↛', '⊕', '↑', '↓'): self.strange_types()
 
         self.properties()
 
@@ -123,8 +108,6 @@ class LogicExpression:
         
         else: #self.type in binary_connectors:
             for le in le_list[1:]:   self.__argument.append(LogicExpression(le, self))
-
-        #vars???????????????????????????
 
 
     ##########################################################################
@@ -146,7 +129,6 @@ class LogicExpression:
         self.type = other.type
 
         self.vars = other.vars.copy() if mode != 'r' else other.vars
-
 
         if mode == 'i':
             self.root = self
@@ -262,6 +244,9 @@ class LogicExpression:
     def order(self, *order)->tuple:
         if len(order) != 0: self.vars = [i for i in order]
         return tuple(self.vars)
+
+
+
     ###########################################################################
     #OPERATORS
     ###########################################################################
@@ -369,6 +354,20 @@ class LogicExpression:
         #simplify 0's and 1's
         self.check_neutral_and_dominant()
     
+    def strange_types(self):
+        old_root = self.root    #I don't understand why I have to do that
+
+        if self.type == '⊕': self.type = '='
+        elif self.type == '↛': self.type = '>'
+        elif self.type == '↚': self.type = '<'
+        elif self.type == '↑': self.type = '&'
+        elif self.type == '↓': self.type = '|'
+
+        self.copy(-LogicExpression([self.type, self[0], self[1]]))
+        self.root = old_root
+        self[0].root = self[1].root = self
+        self.properties()
+
     def check_neutral_and_dominant(self):
         if self.type not in ('>', '&', '|'): return None
         i=0
@@ -669,8 +668,7 @@ class LogicExpression:
 
                 string += str(self[i]) + ' ' + self.type + ' '
 
-            string = '(' + string[:-3] + ')' # adds () and removes the last connective
-            
+            string = string[:-3] # removes the last connective
 
         if self.type in unary_connectors:
 
@@ -680,19 +678,21 @@ class LogicExpression:
             elif self[0].type in ('0','1'): 
                 string+= str(int(not bool(self[0].__argument)))
 
-            elif len(self.__argument) > 1:
-                string += self.type + '(' + str(self[0]) + ')'
+            else:
+                string += self.type + str(self[0])
         
         elif self.type in ('p','0','1'):
             string += self.__argument if self.type == 'p' else str(int(self.__argument))
         
         #for roots
         if self.root is self:
-            string = string[1:-1]   #delete parentheses
             string = list(string)
             for i in range(len(string)):
                 if string[i] in notation_out: string[i] = notation_out[string[i]]
             string = "".join(string)
+        else:
+            if self.type in connectors:
+                string = '(' + string + ')'
 
 
         return string
