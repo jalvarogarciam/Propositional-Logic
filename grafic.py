@@ -1,38 +1,31 @@
 import flet as ft
+from LogicExpression import LogicExpression as le
 
-
-class CalcButton(ft.ElevatedButton):
-    def __init__(self, text, button_clicked, expand=False):
+class key(ft.ElevatedButton):
+    def __init__(self, text, button_clicked, width=60, color=ft.colors.WHITE, bgcolor=ft.colors.PURPLE):
         super().__init__()
         self.text = text
-        self.expand = expand
+        self.expand = False
         self.on_click = button_clicked
         self.data = text
-
-
-class ConnectiveButton(CalcButton):
-    def __init__(self, text, button_clicked, width=60, color=ft.colors.WHITE, bgcolor=ft.colors.PURPLE):
-        CalcButton.__init__(self, text, button_clicked, expand=False )
         self.bgcolor = bgcolor
         self.color = color
         self.width = width
 
-
-class ActionButton(CalcButton):
+class ActionButton(ft.ElevatedButton):
     def __init__(self, text, button_clicked):
-        CalcButton.__init__(self, text, button_clicked, expand=False)
-        self.color = ft.colors.RED
-
-
+        ...
 
 class Panel(ft.Row):
     # application's root control (i.e. "view") containing all other controls
     def __init__(self):
         super().__init__()
 
+        self.le = le(0)
+
         self.formula = ft.TextField(
             hint_text="FORMULA", expand=False,
-            autofocus=True, on_focus=self.on_focus,
+            autofocus=True,
             filled=True, fill_color=ft.colors.WHITE70,
             width=350, cursor_color=ft.colors.BLACK,
             text_style=ft.TextStyle( 
@@ -42,51 +35,51 @@ class Panel(ft.Row):
         )
         self.values = ft.TextField(
             hint_text="values {}", text_align='center',
-            color="yellow", width=150
+            color=ft.colors.YELLOW, width=150
         )
         self.order = ft.TextField(
             hint_text="order", text_align='center',
-            color="yellow", width=150
+            color=ft.colors.YELLOW, width=150
         )
         self.classification = ft.TextField(
-            hint_text="classification", 
-            color="red", width=150, disabled=True
+            hint_text="classification", text_align='center',
+            color=ft.colors.RED, width=150, disabled=True
         )
         self.interpretation = ft.TextField(
-            hint_text="interpretation", 
-            color="red", width=200, disabled=True
+            hint_text="interpretation", text_align='center',
+            color=ft.colors.RED, width=200, disabled=True
         )
-        self.connective_buttons = ft.Column(
+        self.keyboard = ft.Column(
             controls=[
                 ft.Row(
                     controls=[
-                        ConnectiveButton(text="∧", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="∨", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="→", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="←", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="↔", button_clicked=self.button_clicked),
+                        key(text="∧", button_clicked=self.button_clicked),
+                        key(text="∨", button_clicked=self.button_clicked),
+                        key(text="→", button_clicked=self.button_clicked),
+                        key(text="←", button_clicked=self.button_clicked),
+                        key(text="↔", button_clicked=self.button_clicked),
                     ]
                 ),
                 ft.Row(
                     controls=[
-                        ConnectiveButton(text="↑", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="↓", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="↛", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="↚", button_clicked=self.button_clicked),
-                        ConnectiveButton(text="⊕", button_clicked=self.button_clicked),
+                        key(text="↑", button_clicked=self.button_clicked),
+                        key(text="↓", button_clicked=self.button_clicked),
+                        key(text="↛", button_clicked=self.button_clicked),
+                        key(text="↚", button_clicked=self.button_clicked),
+                        key(text="⊕", button_clicked=self.button_clicked),
                     ]
                 ),
                 ft.Row(
                     controls=[
-                        ConnectiveButton(
+                        key(
                             text="1", button_clicked=self.button_clicked, 
                             width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK
                         ),
-                        ConnectiveButton(
+                        key(
                             text="¬", button_clicked=self.button_clicked, 
                             width=110, color=ft.colors.BLACK, bgcolor='purple',
                         ),
-                        ConnectiveButton(
+                        key(
                             text="0", button_clicked=self.button_clicked, 
                             width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK
                         ),
@@ -97,6 +90,7 @@ class Panel(ft.Row):
             ]
         )
 
+        self.board = ft.Column(width=350)
 
         self.controls = [
             ft.Column(
@@ -115,7 +109,8 @@ class Panel(ft.Row):
             ft.Column(
                 controls=[
                     self.formula, 
-                    self.connective_buttons,
+                    self.keyboard,
+                    self.board
                 ],
                 height=200
             ),
@@ -128,18 +123,11 @@ class Panel(ft.Row):
                         on_click=self.button_clicked,
                         width=150
                     ),
-                    self.interpretation
+                    self.interpretation,
                 ],
                 width=150, height=200
             ),
         ]
-
-
-    def on_focus(self, e):
-        # Obtener el TextField y mover el cursor al final del texto
-        text_field = e.control
-        text_field.cursor_position = len(text_field.value)
-        self.update()
 
     def button_clicked(self, e):
         data = e.control.data
@@ -147,27 +135,108 @@ class Panel(ft.Row):
 
         if self.formula.value == "Error":   self.reset()
 
-
-        if data in ("∧", "∨", "→", "←", "↔", '↑', '↚', '↛', '↓', '⊕', '1', '0', '¬'): 
-            self.formula.value += data
-            # Actualizar el campo de texto
-            self.formula.update()
-            # Mover el cursor al final del texto después de actualizar el valor
-            self.formula.cursor_position = len(self.formula.value)-1
-            self.formula.focus()
-            self.formula.update()
-
-        else:
+        if self.formula.value == "":
             if not self.formula.value:
                 self.formula.error_text = "Please, enter a logic formula"
                 self.formula.update()
                 self.formula.value = "Error"
-            else:
-                ...
+
+        if type(e.control) == key:
+            self.formula.value += data
+            # Actualizar el campo de texto
+            self.formula.update()
+            # Mover el cursor al final del texto después de actualizar el valor
+            self.formula.focus()
+        
+        elif type(e.control) == ft.ElevatedButton:
+            if "classify" in e.control.text: self.clasify()
+            elif "interpret" in e.control.text: self.interpret()
+
+
+    def make_board(self):
+        self.le = le(self.formula.value)
+
+        if self.order != "": self.le.order(*(i for i in self.order.value))
+
+        self.board.controls = [
+            ft.Row(
+                controls= [
+                    ft.TextField(
+                        value= "".join(self.le.vars), disabled=True
+                    ),
+                    ft.TextField(
+                        value= "value", disabled=True
+                    )
+                ]
+            )
+        ]
+
+        board = self.le()[1]
+
+        for r in board:
+            self.board.controls.append(
+                ft.Row(
+                    controls= [
+                        ft.TextField(
+                            value= "".join(r[0]), disabled=True
+                        ),
+                        ft.TextField(
+                            value= r[1], disabled=True
+                        )
+                    ]
+                )
+            )
+
+        
+        
 
     def reset(self):
         self.formula.value = ""
         self.formula.error_text = ""
+
+    def clasify(self):
+        self.le = le(self.formula.value)
+
+        if self.le.istautology(): 
+            self.classification.value = "tautology"
+            self.classification.color= ft.colors.GREEN
+        else:
+            if self.le.iscontradiction(): 
+                self.classification.value = "contradiction"
+                self.classification.color= ft.colors.RED
+            else : 
+                self.classification.value = "contingent"
+                self.classification.color= ft.colors.WHITE
+        
+        self.classification.update()
+    
+    def interpret(self):
+        self.le = le(self.formula.value)
+
+        if self.order != "": self.le.order(*(i for i in self.order.value))
+
+        values = {}
+        i=0
+        for val in self.values.value:
+            values.update({self.le.vars[i]:int(val)})
+            i+=1
+
+        interpretation = self.le(values)
+        print(values, self.le.vars)
+
+        if interpretation:
+            self.interpretation.color= ft.colors.GREEN
+            self.interpretation.value= "true"
+        else:
+            self.interpretation.color= ft.colors.RED
+            self.interpretation.value= "false"
+
+        self.interpretation.update()
+
+        self.make_board()
+        self.update()
+
+
 
 
 
