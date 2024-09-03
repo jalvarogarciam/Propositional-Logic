@@ -3,8 +3,8 @@ DEBUG = [False,False,True,False,False]
 #Conectivas binarias
 binary_connectors= ['&','|','>','=','<', '↚', '↛', '⊕', '↑', '↓']
 all_binary_connectors= {
-    '∨':'|', '+':'|', '||':'|', '|':'|',
-    '∧':'&', '&&':'&', '&':'&', '*':'&',
+    '∨':'|', '+':'|', '|':'|',
+    '∧':'&', '&':'&', '*':'&',
     '→':'>','>':'>','←':'<', '<':'<',
     '↔':'=','=':'=',
     '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'
@@ -21,120 +21,86 @@ all_connectors = list(all_binary_connectors.keys()) + list (all_unary_connectors
 
 notation_out = {'!':'¬', '&':'∧', '|':'∨','>':'→','=':'↔','<':'←', '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'}
 notation_in = {value:key for key, value in notation_out.items()}
-variables = "qwertyuiopasdfghjklzxcvbnm"
-def usual_to_polish(arg:list|tuple|str, counter=0)->str:
-    counter += 1
-
-    if counter == 1: arg = str(arg)
-
-    arg = list((arg))
+variables = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
 
 
 
-    if counter == 1:
+def usual_to_polish(arg:str)->str:
 
-        #Removes spaces
-        i = 0
-        while i < len(arg):
-            if arg[i].isspace(): del arg[i]
-            else : i+=1
+    first_time = False
+
+    if type(arg) == str:
+        first_time = True
+
+        # Removes spaces
+        arg = arg.replace(" ", "")
+
+        # replacements dictionary
+        replacements = {**all_unary_connectors, **all_binary_connectors}
+
+        # makes the translation board with
+        translation_board = str.maketrans(replacements)
+
+        # replaces the connectors
+        arg = arg.translate(translation_board)
+
+        # Manejar conectores binarios dobles como &&
+        arg = arg.replace("&&", "&")
+        arg = arg.replace("||", "|")
 
 
-        #Unify the notation and save it
-        its_notation = {'!':'!','&':'&','|':'|','>':'>','=':'=','<':'<', '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'}
+        arg = list(arg)
         i=0
         while i < len(arg)-1:
 
-            #unary connectors
-            if arg[i] in all_unary_connectors.keys():
-                its_notation[all_unary_connectors[arg[i]]] = arg[i]
-                arg[i] = all_unary_connectors[arg[i]]
-
-            #double binary connectors like &&
-            elif arg[i] + arg[i+1] in all_binary_connectors.keys():
-                its_notation[all_binary_connectors[arg[i] + arg[i+1]]] = arg[i] + arg[i+1]
-                arg[i:i+2] = all_binary_connectors[arg[i] + arg[i+1]]
-
-            #binary connectors like
-            elif arg[i] in all_binary_connectors.keys():
-                its_notation[all_binary_connectors[arg[i]]] = arg[i]
-                arg[i] = all_binary_connectors[arg[i]]
-
             #puts missing connectors
-            elif arg[i] not in ('(',')') and arg[i+1] not in ('(',')') and\
-                arg[i+1] not in all_connectors :
+            if arg[i].isalpha() and arg[i+1] not in ('(',')') and\
+            arg[i+1] not in all_connectors :
                 arg.insert(i+1,'&')
                 i+=1
 
             i+=1
 
-
-        #if it's on polish notation, return
-        i = 0
-        while arg[i] in all_unary_connectors.keys(): i+=1
-        if arg[i] in all_binary_connectors: return "".join(arg) 
-
-
-        #UNIFIES UNARY CONNECTIVES WITH PROPOSITIONS
+        #unifies unary connectives with propositions
         i = 0
         while i < len(arg):
-
-            if arg[i] in unary_connectors and  arg[i+1] != '(':
+            if arg[i] == '!' and  arg[i+1] != '(':
                 arg[i:i+2] = [arg[i]+arg[i+1]]
             i+=1
 
 
-        #REMOVES ALL NOT(NOT(...))
-        i=0
-        while i+1 < len(arg):
-            if (arg[i] == arg[i+1]) and arg[i] == '!':
-                for x in range(2) : del arg[i]
-            i+=1
-
-
-
-
-    opposite = arg[0] if arg[0] in unary_connectors else ""
-
-    expr = list(arg) if not opposite else list(arg[1:])
-
-
     #SOLVE ALL PARENTHESES
-    if '(' in expr:
+    if '(' in arg:
 
         i = 0
-        while i < len(expr):
+        while i < len(arg):
 
-            if expr[i] == '(':
+            if arg[i] == '(':
 
                 #localizes the main expr between the parenthesses
                 j = i
                 open_par = 1
                 while open_par > 0:
                     j+=1
-                    if expr[j] == '(': open_par+=1
-                    elif expr[j] == ')': open_par-=1
+                    if arg[j] == '(': open_par+=1
+                    elif arg[j] == ')': open_par-=1
 
                 #turns parenthesses into polish notation
-                expr[i:j+1] = [usual_to_polish(expr[i+1:j], counter)]
+                arg[i:j+1] = usual_to_polish(arg[i+1:j])
 
             else: i += 1
 
+
     #FOR BINARY CONNECTIVES --> FORM P CONNTV P TO CONNTV P P
     i = 0
-    while len(expr) > i+1 :
-        if (expr[i] in binary_connectors):   #(prop) Cnective (prop)
-            expr[i-1:i+2] = [expr[i] + expr[i-1] + expr[i+1]]   #Cnective (prop) (prop)
+    while len(arg) > i+1 :
+
+        if (arg[i] in binary_connectors):   #(prop) Cnective (prop)
+            arg[i-1:i+2] = [arg[i] + arg[i-1] + arg[i+1]]   #Cnective (prop) (prop)
 
         else: i+=1
 
-
-    if len(opposite) > 0: expr.insert(0,opposite)
-
-    if counter == 1:
-        return ("".join(expr),its_notation)
-    else:
-        return "".join(expr)
+    return "".join(arg) if first_time else arg
 
 
 
@@ -150,6 +116,9 @@ def test (expresion:str)-> int:
             counter-=1
     
     return counter
+
+
+
 
 
 
@@ -179,3 +148,5 @@ def dec_binbol(int_number:int,bits:int=None)->tuple:
             else :
                 binbol[i]=False'''
         return tuple(binbol)
+
+

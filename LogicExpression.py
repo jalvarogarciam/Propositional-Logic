@@ -62,9 +62,13 @@ class LogicExpression:
     #Expression builder
     def expr__init__(self, raw_expression:str|list|tuple):
 
-        if self.root is self:
+        if self.root is self and raw_expression[0] in connectors:
+        #if it´s a root and it´s not on polish notation
+            i=0
+            while raw_expression[i] in unary_connectors:    i+=1
 
-            raw_expression = usual_to_polish(raw_expression)[0]
+            if raw_expression[i] not in binary_connectors: 
+                raw_expression = usual_to_polish(raw_expression)[0]
 
         self.type = raw_expression[0]
 
