@@ -1,10 +1,10 @@
 DEBUG = [False,False,True,False,False]
 
 #Conectivas binarias
-binary_connectors= ['&','|','>','=','<', '↚', '↛', '⊕', '↑', '↓']
+binary_connectors= ['*','+','>','=','<', '↚', '↛', '⊕', '↑', '↓']
 all_binary_connectors= {
-    '∨':'|', '+':'|', '|':'|',
-    '∧':'&', '&':'&', '*':'&',
+    '∨':'+', '+':'+', '|':'+',
+    '∧':'*', '&':'*', '*':'*',
     '→':'>','>':'>','←':'<', '<':'<',
     '↔':'=','=':'=',
     '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'
@@ -19,7 +19,7 @@ all_unary_connectors= {
 connectors = list(binary_connectors) + list (unary_connectors)
 all_connectors = list(all_binary_connectors.keys()) + list (all_unary_connectors.keys())
 
-notation_out = {'!':'¬', '&':'∧', '|':'∨','>':'→','=':'↔','<':'←', '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'}
+notation_out = {'!':'¬', '*':'∧', '+':'∨','>':'→','=':'↔','<':'←', '↚':'↚', '↛':'↛', '⊕':'⊕', '↑':'↑', '↓':'↓'}
 notation_in = {value:key for key, value in notation_out.items()}
 variables = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
 
@@ -52,11 +52,10 @@ def usual_to_polish(arg:str)->str:
         arg = list(arg)
         i=0
         while i < len(arg)-1:
-
             #puts missing connectors
             if arg[i].isalpha() and arg[i+1] not in ('(',')') and\
             arg[i+1] not in all_connectors :
-                arg.insert(i+1,'&')
+                arg.insert(i+1,'*')
                 i+=1
 
             i+=1
@@ -76,7 +75,7 @@ def usual_to_polish(arg:str)->str:
         while i < len(arg):
 
             if arg[i] == '(':
-
+                
                 #localizes the main expr between the parenthesses
                 j = i
                 open_par = 1
@@ -86,11 +85,14 @@ def usual_to_polish(arg:str)->str:
                     elif arg[j] == ')': open_par-=1
 
                 #turns parenthesses into polish notation
-                arg[i:j+1] = usual_to_polish(arg[i+1:j])
+                if arg[i-1] != '!':
+                    arg[i:j+1] = usual_to_polish(arg[i+1:j])
+                else:
+                    arg[i-1:j+1] = ['!' + usual_to_polish(arg[i+1:j])[0]]
 
             else: i += 1
 
-
+    
     #FOR BINARY CONNECTIVES --> FORM P CONNTV P TO CONNTV P P
     i = 0
     while len(arg) > i+1 :

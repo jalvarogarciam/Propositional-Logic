@@ -1,7 +1,7 @@
 import flet as ft
 from LogicExpression import LogicExpression as le
 
-class key(ft.ElevatedButton):
+class Key(ft.ElevatedButton):
     def __init__(self, text, button_clicked, width=60, color=ft.colors.WHITE, bgcolor=ft.colors.PURPLE):
         super().__init__()
         self.text = text
@@ -12,12 +12,19 @@ class key(ft.ElevatedButton):
         self.color = color
         self.width = width
 
+class ValueKey(Key):
+    def __init__(self,text,button_clicked, bgcolor=ft.colors.BLUE):
+        super().__init__(text=text, button_clicked=button_clicked)
+        self.width = 110
+        self.bgcolor = bgcolor
+        self.color = ft.colors.BLACK
+
 class ActionButton(ft.ElevatedButton):
     def __init__(self, text, button_clicked):
         ...
 
-class Panel(ft.Row):
-    # application's root control (i.e. "view") containing all other controls
+class Panel(ft.Column):
+    
     def __init__(self):
         super().__init__()
 
@@ -28,10 +35,7 @@ class Panel(ft.Row):
             autofocus=True,
             filled=True, fill_color=ft.colors.WHITE70,
             width=350, cursor_color=ft.colors.BLACK,
-            text_style=ft.TextStyle( 
-                color=ft.colors.BLACK, 
-                weight=ft.FontWeight.BOLD 
-            )
+            text_style=ft.TextStyle( color=ft.colors.BLACK, weight=ft.FontWeight.BOLD )
         )
         self.values = ft.TextField(
             hint_text="values {}", text_align='center',
@@ -53,36 +57,27 @@ class Panel(ft.Row):
             controls=[
                 ft.Row(
                     controls=[
-                        key(text="∧", button_clicked=self.button_clicked),
-                        key(text="∨", button_clicked=self.button_clicked),
-                        key(text="→", button_clicked=self.button_clicked),
-                        key(text="←", button_clicked=self.button_clicked),
-                        key(text="↔", button_clicked=self.button_clicked),
+                        Key(text="∧", button_clicked=self.button_clicked),
+                        Key(text="∨", button_clicked=self.button_clicked),
+                        Key(text="→", button_clicked=self.button_clicked),
+                        Key(text="←", button_clicked=self.button_clicked),
+                        Key(text="↔", button_clicked=self.button_clicked),
                     ]
                 ),
                 ft.Row(
                     controls=[
-                        key(text="↑", button_clicked=self.button_clicked),
-                        key(text="↓", button_clicked=self.button_clicked),
-                        key(text="↛", button_clicked=self.button_clicked),
-                        key(text="↚", button_clicked=self.button_clicked),
-                        key(text="⊕", button_clicked=self.button_clicked),
+                        Key(text="↑", button_clicked=self.button_clicked),
+                        Key(text="↓", button_clicked=self.button_clicked),
+                        Key(text="↛", button_clicked=self.button_clicked),
+                        Key(text="↚", button_clicked=self.button_clicked),
+                        Key(text="⊕", button_clicked=self.button_clicked),
                     ]
                 ),
                 ft.Row(
                     controls=[
-                        key(
-                            text="1", button_clicked=self.button_clicked, 
-                            width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK
-                        ),
-                        key(
-                            text="¬", button_clicked=self.button_clicked, 
-                            width=110, color=ft.colors.BLACK, bgcolor='purple',
-                        ),
-                        key(
-                            text="0", button_clicked=self.button_clicked, 
-                            width=110, bgcolor=ft.colors.BLUE, color=ft.colors.BLACK
-                        ),
+                        ValueKey(text="1", button_clicked=self.button_clicked),
+                        ValueKey(text="¬", button_clicked=self.button_clicked, bgcolor='purple'),
+                        ValueKey(text="0", button_clicked=self.button_clicked),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER
                 )
@@ -90,43 +85,65 @@ class Panel(ft.Row):
             ]
         )
 
-        self.board = ft.Column(width=350)
+        self.board = ft.Container(
+            margin=10,
+            padding=10,
+            alignment=ft.alignment.top_center,
+            bgcolor=ft.colors.GREY_800,
+            width=self.formula.width,
+            height=150,
+            border_radius=5,
+        )
 
+
+
+        self.input = ft.Row(
+            controls=[
+                self.order, 
+                self.formula,
+                self.values
+            ]
+        )
         self.controls = [
-            ft.Column(
+            self.input,
+            ft.Row(
                 controls=[
-                    self.order, 
-                    ft.ElevatedButton(
-                        text="↓classify↓", 
-                        color='yellow', 
-                        on_click=self.button_clicked,
-                        width=150
+                    ft.Column(
+                        controls=[
+                            ft.ElevatedButton(
+                                text="↓classify↓", 
+                                color='yellow', 
+                                on_click=self.button_clicked,
+                                width=150
+                            ),
+                            self.classification
+                        ],
+                        height=200,
+                        alignment=ft.alignment.top_center
                     ),
-                    self.classification
-                ],
-                height=200
-            ),
-            ft.Column(
-                controls=[
-                    self.formula, 
-                    self.keyboard,
-                    self.board
-                ],
-                height=200
-            ),
-            ft.Column(
-                controls=[
-                    self.values,
-                    ft.ElevatedButton(
-                        "↓interpret↓", 
-                        color='yellow', 
-                        on_click=self.button_clicked,
-                        width=150
+                    ft.Column(
+                        controls=[
+                            self.keyboard,
+                            self.board
+                        ],
+                        alignment=ft.alignment.center,
+                        width=self.formula.width
                     ),
-                    self.interpretation,
+                    ft.Column(
+                        controls=[
+                            
+                            ft.ElevatedButton(
+                                "↓interpret↓", 
+                                color='yellow', 
+                                on_click=self.button_clicked,
+                                width=150
+                            ),
+                            self.interpretation,
+                        ],
+                        width=150, height=200
+                    ),
                 ],
-                width=150, height=200
-            ),
+            )
         ]
 
     def button_clicked(self, e):
@@ -135,28 +152,25 @@ class Panel(ft.Row):
 
         if self.formula.value == "Error":   self.reset()
 
-        if self.formula.value == "":
+
+
+        if type(e.control) == Key:
+            self.formula.value += data
+            self.formula.focus()
+        
+        elif self.formula.value == "":
             if not self.formula.value:
                 self.formula.error_text = "Please, enter a logic formula"
                 self.formula.update()
-                self.formula.value = "Error"
 
-        if type(e.control) == key:
-            self.formula.value += data
-            # Actualizar el campo de texto
-            self.formula.update()
-            # Mover el cursor al final del texto después de actualizar el valor
-            self.formula.focus()
-        
+                self.formula.value = "Error"
         elif type(e.control) == ft.ElevatedButton:
             if "classify" in e.control.text: self.clasify()
             elif "interpret" in e.control.text: self.interpret()
 
 
     def make_board(self):
-        self.le = le(self.formula.value)
-
-        if self.order != "": self.le.order(*(i for i in self.order.value))
+        self.make_le()
 
         self.board.controls = [
             ft.Row(
@@ -186,8 +200,6 @@ class Panel(ft.Row):
                     ]
                 )
             )
-
-        
         
 
     def reset(self):
@@ -211,18 +223,9 @@ class Panel(ft.Row):
         self.classification.update()
     
     def interpret(self):
-        self.le = le(self.formula.value)
+        self.make_le()
 
-        if self.order != "": self.le.order(*(i for i in self.order.value))
-
-        values = {}
-        i=0
-        for val in self.values.value:
-            values.update({self.le.vars[i]:int(val)})
-            i+=1
-
-        interpretation = self.le(values)
-        print(values, self.le.vars)
+        interpretation = self.le(*(i for i in self.values.value))
 
         if interpretation:
             self.interpretation.color= ft.colors.GREEN
@@ -233,8 +236,10 @@ class Panel(ft.Row):
 
         self.interpretation.update()
 
-        self.make_board()
-        self.update()
+    def make_le(self):
+        self.le = le(self.formula.value)
+
+        if self.order != "": self.le.order(*(i for i in self.order.value))
 
 
 
