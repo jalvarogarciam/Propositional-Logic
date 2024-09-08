@@ -143,6 +143,61 @@ class LogicExpression:
 
         return self
 
+
+
+    def __len__(self)->int:
+    
+        if self.type in binary_connectors:
+            return len(self.__argument) #it's a list
+        else: return 1
+    ########Items
+    def __getitem__(self,index:int)->'LogicExpression': 
+
+        if type(index) == int and index < 0:
+            the_root = self.root
+            i = -1
+            while i > index and the_root != the_root.root: 
+                the_root = the_root.root
+                i-=1
+            return the_root
+
+        #for slicing
+        else:
+            if self.type in ('p', '0', '1') : return self.__argument
+            elif self.type == '!': return self.__argument
+            else : return self.__argument[index]
+
+    def __setitem__(self, index, value):
+        if self.type in ('p', '0', '1'): self.__argument = value
+        else:
+            if type(value) != LogicExpression: value = LogicExpression(value)
+
+            if self.type == '!':    self.__argument = value
+            else:
+                if len(self.__argument) > index:
+                    self.__argument[index] = value
+                else:
+                    self.__argument.append(value)
+
+    def __delitem__(self,index):
+        if self.type in ('p', '0', '1', '!'): del self.__argument
+        else : del self.__argument[index]
+    
+    def __iter__(self):
+        if self.type in ('p', '0', '1', '!'):
+            return iter(list([self.__argument]))
+        else:
+            return iter(self.__argument)
+
+    def append(self, *args):
+        if type(self.__argument) != list: return None
+        for arg in args: self.insert(len(self.__argument), arg)
+
+    def insert(self, index: int, *args):
+        if type(self.__argument) != list: return None
+        for arg in args:
+            if type(arg) != LogicExpression: arg = LogicExpression(arg)
+            self.__argument.insert(index, arg)
     ##########################################################################
     ##########################################################################
     def take_vars(self):
@@ -253,7 +308,7 @@ class LogicExpression:
 
         #creates a new le adding necessary vars to compare
         new = LogicExpression(little)
-        new.change_vars(big.vars)
+        new.vars = big.vars
 
         #changes the necesary references
         if little is self: self = new
@@ -263,9 +318,8 @@ class LogicExpression:
         return ([self, other])
     
     def order(self, *order)->tuple:
-        if len(order) != 0: self.vars = [i for i in order]
+        if len(order) != 0: self.vars = list(order)
         return tuple(self.vars)
-
 
 
     ###########################################################################
@@ -274,12 +328,16 @@ class LogicExpression:
     #Arithmetic operators
     def __add__(self, other) ->'LogicExpression':
         #self, other = self.unify(other)
-        return LogicExpression(['+', self, other])
+        if other not in self:
+            return LogicExpression(['+', self, other])
+        else: return self
     def __or__(self, other) ->'LogicExpression': return self + other
     
     def __mul__(self, other) ->'LogicExpression':
         #self, other = self.unify(other)
-        return LogicExpression(['*', self, other])
+        if other not in self:
+            return LogicExpression(['+', self, other])
+        else: return self
     def __and__(self, other) ->'LogicExpression': return self * other
 
     def __xor__(self, other) ->'LogicExpression':
@@ -295,11 +353,29 @@ class LogicExpression:
 
     #Relational operators
     def __eq__ (self, other)->bool:
-        return hash(self) == hash(other)
-        if set(self.vars) != set(other.vars): return False
 
-        self, other = self.unify(other)
+        if self.type in ('p', '0', '1'):    return self[0] == other[0]
+
+        if not set(other.vars).issubset(set(self.vars)) and \
+        not set(self.vars).issubset(set(other.vars)) : return False
+
+        if self.vars != other.vars: self, other = self.unify(other)
         return self.minterms() == other.minterms()
+
+    def __contains__(self, other)->bool:
+        for e in self:
+            if e == other: return True
+        return False
+
+    def __hash__(self) -> int:
+        string = str(self)
+
+        while not self is self.root:
+            string = str(self.root) + string
+            self = self.root
+        
+        return hash(string)
+
 
     def __ne__ (self, other)->bool:
         return not self == other
@@ -313,19 +389,6 @@ class LogicExpression:
     def __gt__ (self, other)->bool:
         return other in self
 
-    def __contains__(self, other)->bool:
-        self, other = self.unify(other)
-        return self.minterms().issuperset(other.minterms())
-
-
-    def __hash__(self) -> int:
-        string = str(self)
-
-        while not self is self.root:
-            string = str(self.root) + string
-            self = self.root
-        
-        return hash(string)
 
     def istautology(self)->bool:
         return len(self.maxterms()) == 0
@@ -338,12 +401,7 @@ class LogicExpression:
     def iscontingent(self)->bool:
         return self.isrefutable() and self.issatisfacible()
 
-    def __len__(self)->int:
-    
-        if self.type in binary_connectors:
-            return len(self.__argument) #it's a list
 
-        else: return 1
     
     #depth is defined as the number of steps between the main root and the leaf 
     # provided (self)
@@ -355,55 +413,6 @@ class LogicExpression:
         return depth
             
 
-    ########Items
-    def __getitem__(self,index:int)->'LogicExpression': 
-
-        if type(index) == int and index < 0:
-            the_root = self.root
-            i = -1
-            while i > index and the_root != the_root.root: 
-                the_root = the_root.root
-                i-=1
-            return the_root
-
-        #for slicing
-        else:
-            if self.type in ('p', '0', '1') : return self.__argument
-            elif self.type == '!': return self.__argument
-            else : return self.__argument[index]
-
-    def __setitem__(self, index, value):
-        if self.type in ('p', '0', '1'): self.__argument = value
-        else:
-            if type(value) != LogicExpression: value = LogicExpression(value)
-
-            if self.type == '!':    self.__argument = value
-            else:
-                if len(self.__argument) > index:
-                    self.__argument[index] = value
-                else:
-                    self.__argument.append(value)
-
-    def __delitem__(self,index):
-        if self.type in ('p', '0', '1', '!'): del self.__argument
-        else : del self.__argument[index]
-    
-    def __iter__(self):
-        if self.type in ('p', '0', '1', '!'):
-            return iter(list([self.__argument]))
-        else:
-            return iter(self.__argument)
-
-    def append(self, *args):
-        if type(self.__argument) != list: return None
-        for arg in args: self.insert(len(self.__argument), arg)
-
-    def insert(self, index: int, *args):
-        if type(self.__argument) != list: return None
-        for arg in args:
-            if type(arg) != LogicExpression: arg = LogicExpression(arg)
-            self.__argument.insert(index, arg)
-    ##########################################################################
     ###########################################################################
 
 
