@@ -107,9 +107,9 @@ class LogicExpression:
 
         if self.type in unary_connectors: 
             self[0] = LogicExpression(le_list[1], root=self)
-        
+
         else: #self.type in binary_connectors:
-            for le in le_list[1:]:   self.append(LogicExpression(le, self))
+            for le in le_list[1:]:  self.append(LogicExpression(le, self))
 
 
     ##########################################################################
@@ -124,7 +124,7 @@ class LogicExpression:
     #mode= 'r' (reference)-> self = reference(other)
     #mode='i' (independent)-> new LogicExpression from other
     #mode='d' (deep)-> deepcopy   (default)
-    def copy(self, other, mode:str='d')->'LogicExpression':
+    def copy(self, other=None, mode:str='d')->'LogicExpression':
         if mode not in ('d', 'r', 'i'):
             raise ValueError(f"mode {mode} no recognised. Did you mean ('d', 'r', 'i') ?")
 
@@ -185,7 +185,7 @@ class LogicExpression:
     
     def __iter__(self):
         if self.type in ('p', '0', '1', '!'):
-            return iter(list([self.__argument]))
+            return iter([self]) if self.type != '!' else iter(self[0])
         else:
             return iter(self.__argument)
 
@@ -201,9 +201,8 @@ class LogicExpression:
     ##########################################################################
     ##########################################################################
     def take_vars(self):
-        for i in range(len(self)):
-            for i in self[i].vars:
-                if i not in self.vars: self.vars += [i]
+        for l in self:
+            for var in l.vars: self.vars += var if var not in self.vars else []
 
     def find_vars(self, leafs=[]):
         self.vars = []
@@ -211,47 +210,42 @@ class LogicExpression:
         leafs = self.get_leafs() if len(leafs) == 0 else leafs
 
         for leaf in leafs:
-            if leaf.type == 'p' and leaf.__argument not in self.vars:
-                self.vars += leaf.__argument
+            if leaf.type == 'p' and leaf[0] not in self.vars:
+                self.vars += leaf[0]
 
     def get_leafs(self)->list['LogicExpression']:
         leafs = []
 
-        if self.type == '!': self = self[0] #changes self reference (local)
+        if self.type == '!': leafs += self[0].get_leafs() #changes self reference (local)
 
-        if self.type in ('p', '0', '1'):
-            leafs.append(self)
+        if self.type in ('p', '0', '1'):    leafs.append(self)
 
         elif self.type in binary_connectors:
-            for i in self:
-                leafs += i.get_leafs()
+            for l in self:  leafs += l.get_leafs()
 
         return leafs
 
 
     def get_super_leafs(self, leafs:list=[])->list['LogicExpression']:
         leafs = self.get_leafs() if len(leafs) == 0 else leafs
-
-        super_leafs = []
+        super_leafs = ls([])
 
         for l in leafs:
-            if not l.root in super_leafs and not l.root is self:   
-                super_leafs += [l.root]
+            if not (l.root is self):
+                super_leafs += l.root
 
         return super_leafs
 
     def get_all_leafs(self):
-        all_leafs = super_leafs = self.get_leafs()
-        first_leafs_len = len(all_leafs) #to know the max depth of deapest leafs
-        
+        all_leafs = super_leafs = ls(self.get_leafs())
+        max_depth = max(*(l.depth() for l in all_leafs)) #to know the max level of the matrix
+
         while not all(elem in all_leafs for elem in self):
             super_leafs = self.get_super_leafs(super_leafs)
-            for l in super_leafs: all_leafs += [l] if l not in all_leafs else []
+            for l in super_leafs:   all_leafs += l
 
         #sorted by levels of depth
-        levels = [] #creates the new matrix
-        for i in range(max(*(l.depth() for l in all_leafs[:first_leafs_len]))): 
-            levels.append([])
+        levels = [*([] for i in range(max_depth))] #creates the new matrix
 
         for l in all_leafs: #fills it
             levels[l.depth()-1].append(l)
@@ -308,7 +302,7 @@ class LogicExpression:
 
         #creates a new le adding necessary vars to compare
         new = LogicExpression(little)
-        new.vars = big.vars
+        new.change_vars(big.vars)
 
         #changes the necesary references
         if little is self: self = new
@@ -327,17 +321,11 @@ class LogicExpression:
     ###########################################################################
     #Arithmetic operators
     def __add__(self, other) ->'LogicExpression':
-        #self, other = self.unify(other)
-        if other not in self:
-            return LogicExpression(['+', self, other])
-        else: return self
+        return LogicExpression(['+', self, other])
     def __or__(self, other) ->'LogicExpression': return self + other
     
     def __mul__(self, other) ->'LogicExpression':
-        #self, other = self.unify(other)
-        if other not in self:
-            return LogicExpression(['+', self, other])
-        else: return self
+        return LogicExpression(['*', self, other])
     def __and__(self, other) ->'LogicExpression': return self * other
 
     def __xor__(self, other) ->'LogicExpression':
@@ -353,7 +341,6 @@ class LogicExpression:
 
     #Relational operators
     def __eq__ (self, other)->bool:
-
         if self.type in ('p', '0', '1'):    return self[0] == other[0]
 
         if not set(other.vars).issubset(set(self.vars)) and \
@@ -361,11 +348,12 @@ class LogicExpression:
 
         if self.vars != other.vars: self, other = self.unify(other)
         return self.minterms() == other.minterms()
+    def __ne__ (self, other)->bool:
+        return not self == other
 
     def __contains__(self, other)->bool:
-        for e in self:
-            if e == other: return True
-        return False
+        self, other = self.unify(other)
+        return self.minterms() >= other.minterms()
 
     def __hash__(self) -> int:
         string = str(self)
@@ -373,21 +361,20 @@ class LogicExpression:
         while not self is self.root:
             string = str(self.root) + string
             self = self.root
-        
+
         return hash(string)
 
 
-    def __ne__ (self, other)->bool:
-        return not self == other
 
-    def __le__ (self, other)->bool:
-        return self in other or other == self
-    def __ge__ (self, other)->bool:
-        return other in self or other == self
-    def __lt__ (self, other)->bool:
-        return self in other
-    def __gt__ (self, other)->bool:
-        return other in self
+    def __le__ (self, other)->bool:# self <= other
+        self, other = self.unify(other)
+        return self <= other.minterms()
+    def __ge__ (self, other)->bool:# self >= other
+        return self > other or self == other
+    def __lt__ (self, other)->bool:# self < other
+        return not self >= other
+    def __gt__ (self, other)->bool:# self > other
+        return not self <= other
 
 
     def istautology(self)->bool:
@@ -498,10 +485,12 @@ class LogicExpression:
                     i-=1
                 del self[term_index]
                 term_index += lenght
-        
+
             else: term_index += 1
 
-    def distribute(self): ...
+
+    def distribute(self):...
+
 
     def not_not(self):
         if self.type == '!' and self[0].type == '!':
@@ -535,34 +524,22 @@ class LogicExpression:
 
 
     def absorb(self):
+        if self.type not in ('+','*'): return None
+
         #deletes all equals
-        if self.type == '+':
-            i=0
-            while i < len(self):
-
-                j=0
-                while j < len(self):
-                    if j != i:
-                        if self[i] <= self[j]: 
-                            del self[i]
-                            j = len(self)
-                        else: j+=1
+        i=0
+        while i < len(self):
+            j=0
+            while j < len(self):
+                if j != i:
+                    if (self[i] <= self[j] and self.type == '+') or \
+                    (self[i] >= self[j] and self.type == '*'): 
+                        del self[i]
+                        j = len(self)
                     else: j+=1
-                i+=1
+                else: j+=1
+            i+=1
 
-        elif self.type == '*':
-            i=0
-            while i < len(self):
-
-                j=0
-                while j < len(self):
-                    if j != i:
-                        if self[i] >= self[j]: 
-                            del self[i]
-                            j = len(self)
-                        else: j+=1
-                    else: j+=1
-                i+=1
     ###########################################################################
 
 
@@ -720,7 +697,6 @@ class LogicExpression:
                     l.type = '+'
                     l[0] = -l[0]
 
-
     def minterms(self)->set: return self.canonical_terms(True)
     def maxterms(self)->set: return self.canonical_terms(False)
     def canonical_terms(self,on_minterms=True):
@@ -804,11 +780,10 @@ class LogicExpression:
             if string[i] in notation_out: string[i] = notation_out[string[i]]
         string = "".join(string)
 
-        if not self.root is self:
+        if not self.root is self :
             if self.type in binary_connectors or \
             self.type == '!' and self[0].type in binary_connectors:
                 string = '(' + string + ')'
-
 
         return string
     ##########################################################################
@@ -830,54 +805,61 @@ class LogicExpression:
 
 
 from LogicExpression import LogicExpression as le
-class ls:
+class ls(list):
     def __init__(self, *args):
 
-        self.__clauses : list = []
+        if all(type(elem) == le for elem in args):  super().__init__(list(args))
 
-        if len(args) == 0: ...
-
-        elif type(args[0]) == ls:
-            self.__clauses = args[0].__clauses.copy()
-
-        elif type(args[0]) != le and len(args) == 1: self.__clauses = list(args[0])
-
-        else : self.__clauses = list(args)
-
-    # [] item access
-    def __getitem__(self,index:int)->'LogicExpression': return self.__clauses[index]
-    def __setitem__(self, index, value): self.__clauses[index] = LogicExpression(value)
-    def __delitem__(self,index): del self.__clauses[index]
+        elif type(args[0]) in (ls, list):
+            super().__init__(args[0].copy())
 
 
-    def __len__(self)->int:
-        return len(self.__clauses)
 
-    def __add__(self, other) ->'ls': 
+
+
+
+    def __add__(self, other) ->'ls':
         result = ls(self)
-        #clauses can't be repeated
-        for c in other.__clauses:
-            if c not in result.__clauses: result.__clauses += [c]
+
+        if type(other) == ls:
+            #clauses can't be repeated
+            for c in other:
+                if ls(c) not in result: result.append(c)
+
+        elif type(other) == le:
+            if other not in self:  result.append(other)
         return result
+    def  __iadd__(self, other) ->'ls': return self.copy(self+other)
+
     def __or__(self, other) ->'ls': return self + other
     def __mul__(self, other) ->'ls': return self + other
     def __and__(self, other) ->'ls': return self * other
 
     def __sub__(self, other) ->'ls':
-        clauses_difference = self.__clauses.copy()
-        clauses_difference.remove(*(~other))
+        if type(other) != ls: other = ls(other)
 
-
-    #returns a copy of the clauses' list
-    def __invert__(self):
-        return ls(self).__clauses
-
+        sub = ls()
+        for c in self:
+            if ls(c) not in other:  sub.append(c)
+        return sub
+    def  __isub__(self, other) ->'ls':  return self.copy(self-other)
 
     #Relational operators
     def __eq__ (self, other)->bool:
-        return self.__clauses == other.__clauses
+        return all(c in other for c in self) and len(other) == len(self)
     def __ne__ (self, other)->bool:
         return not self == other
+    
+    def __contains__ (self, other)->bool:
+        if type(other) == le:
+            for c in self:
+                if hash(c) == hash(other): return True
+            return False
+
+        elif type(other) == ls:
+            all_in = True
+            for c in other: all_in &= c in list(self)
+            return all_in
 
     def __le__ (self, other)->bool:
         return self in other or other == self
@@ -888,14 +870,22 @@ class ls:
     def __gt__ (self, other)->bool:
         return other in self
 
-    def __contains__(self, other)->bool:
-        return set(self.__clauses).issuperset(set(other.__clauses))
-
 
     def __str__(self):
         if len(self) == 0: return ""
-        string = str(self.__clauses[0]) 
-        for exp in self.__clauses[1:]:
-            string += ', ' + str(exp)
+
+        string = str(self[0])[1:-1]
+        for c in self[1:]:
+            string += ', ' + str(c)[1:-1]
 
         return string
+
+    def copy(self, other=[])->'ls':
+        if other == []: return ls(*(LogicExpression(c,c.root) for c in self))
+        else:
+            self.clear()
+            self.extend(other.copy())
+            return self
+
+
+

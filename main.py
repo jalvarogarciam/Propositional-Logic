@@ -8,17 +8,21 @@ import time as t
 start = t.time()
 
 la = le("(a+b)")
-laa = le('a*(a+(b+(c>(e=(c+b+(a*!a*!b*!c))))))')
+laa = le('(c*((a*c)+b))>a')
 lu = le("!a")
-li = le('!a*!b*!c')
+li = le('!a*!b*!c*!c*!c*!a*!c*!a')
 last = [la, lu]
 
-print(lu in li)
+lsa = ls(lu, li, laa)
+lso = ls(laa[1])
 
-
+for i in laa.get_all_leafs():
+    print('.....')
+    for j in i: print(j)
 
 end = t.time()
 print(end-start)
+
 
 
 
