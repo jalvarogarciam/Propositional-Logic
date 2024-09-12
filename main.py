@@ -16,9 +16,10 @@ last = [la, lu]
 lsa = ls(lu, li, laa)
 lso = ls(laa[1])
 
-for i in laa.get_all_leafs():
-    print('.....')
-    for j in i: print(j)
+lso = list({1:2,3:4,5:6}.values())
+
+laa.change_vars(('a', 'b', 'c', 'm'))
+print(laa)
 
 end = t.time()
 print(end-start)

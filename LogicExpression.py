@@ -264,22 +264,24 @@ class LogicExpression:
 
         #creates the dictionary whith old_var_name:new_var_name
         if type(changes) == dict:
+            self.vars = list(changes.values())
             new_vars.update(changes)
 
-        elif type(changes) in (list, tuple) and len(changes) >= len(self.vars):
+        elif type(changes) in (list, tuple):
+            changes = list(changes)
+            self.vars = changes.copy()
             #Add each new_var whith new items
             j=0
             for key in new_vars:
-                new_vars[key] = changes[j]
-                j+=1
+                if key in self.vars:    changes.remove(key)
+                else:
+                    new_vars[key] = changes[j]
+                    j+=1
 
         #changes the vars from the leafs
         for leaf in leafs:
-            if leaf.type == 'p': leaf.__argument = new_vars[leaf.__argument]
+            if leaf.type == 'p': leaf[0] = new_vars[leaf[0]]
 
-        #updates self vars
-        if type(changes) in (tuple, list): self.vars = {value for value in changes}
-        elif type(changes) == dict : self.vars = [value for value in changes.values()]
 
 
     # adds {amount} random vars, default 1
@@ -294,7 +296,7 @@ class LogicExpression:
     # unifies the vars (order, names, and amount).
     def unify(self, other, modifying=False) -> tuple:
         if self.vars == other.vars : 
-            return self, other #if they have the same vars and vars have the same order
+            return self, other #if they have the same vars with the same order
 
         #takes the smallest le
         little = self if len(self.vars) < len(other.vars) else other
@@ -323,7 +325,7 @@ class LogicExpression:
     def __add__(self, other) ->'LogicExpression':
         return LogicExpression(['+', self, other])
     def __or__(self, other) ->'LogicExpression': return self + other
-    
+
     def __mul__(self, other) ->'LogicExpression':
         return LogicExpression(['*', self, other])
     def __and__(self, other) ->'LogicExpression': return self * other
@@ -340,13 +342,12 @@ class LogicExpression:
     def __invert__(self) ->'LogicExpression': return - self
 
     #Relational operators
-    def __eq__ (self, other)->bool:
-        if self.type in ('p', '0', '1'):    return self[0] == other[0]
-
-        if not set(other.vars).issubset(set(self.vars)) and \
-        not set(self.vars).issubset(set(other.vars)) : return False
+    def __eq__ (self, other:'LogicExpression')->bool:
+        if self.type in ('p', '0', '1') and self.type == other.type:
+            return self[0] == other[0]
 
         if self.vars != other.vars: self, other = self.unify(other)
+
         return self.minterms() == other.minterms()
     def __ne__ (self, other)->bool:
         return not self == other
