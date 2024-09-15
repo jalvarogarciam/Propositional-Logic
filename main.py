@@ -10,7 +10,7 @@ start = t.time()
 la = le("(a+b)")
 laa = le('(c*((a*c)+b))>a')
 lu = le("!a")
-li = le('!a*!b*!c*!c*!c*!a*!c*!a')
+li = le('!b*!c*!a*!b*!c*!c*!c*!a*!c*!a')
 last = [la, lu]
 
 lsa = ls(lu, li, laa)
@@ -18,8 +18,11 @@ lso = ls(laa[1])
 
 lso = list({1:2,3:4,5:6}.values())
 
-laa.change_vars(('a', 'b', 'c', 'm'))
-print(laa)
+
+print(li)
+li.absorb()
+print(li)
+
 
 end = t.time()
 print(end-start)

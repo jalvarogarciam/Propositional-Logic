@@ -293,26 +293,19 @@ class LogicExpression:
                 self.vars += [var]
                 i+=1
 
-    # unifies the vars (order, names, and amount).
+    # returns two LE with the same vars' list
     def unify(self, other, modifying=False) -> tuple:
-        if self.vars == other.vars : 
-            return self, other #if they have the same vars with the same order
-
-        #takes the smallest le
-        little = self if len(self.vars) < len(other.vars) else other
-        big = other if little is self else self
+        if self.vars == other.vars : return self, other 
+        #if they have the same vars with the same order
 
         #creates a new le adding necessary vars to compare
-        new = LogicExpression(little)
-        new.change_vars(big.vars)
+        new_self, new_other = LogicExpression(self), LogicExpression(other)
+        new_other.vars  = new_self.vars = list(set(self.vars + other.vars)) #there isn't repeated vars
 
-        #changes the necesary references
-        if little is self: self = new
-        else: other = new
+        if modifying:   self.vars, other.vars = new_self.vars, new_other.vars
 
-        if modifying:   little.copy(new)
-        return ([self, other])
-    
+        return ([new_self, new_other])
+
     def order(self, *order)->tuple:
         if len(order) != 0: self.vars = list(order)
         return tuple(self.vars)
@@ -343,18 +336,18 @@ class LogicExpression:
 
     #Relational operators
     def __eq__ (self, other:'LogicExpression')->bool:
-        if self.type in ('p', '0', '1') and self.type == other.type:
+        if self.type in ('p', '0', '1', '!') and self.type == other.type:
             return self[0] == other[0]
 
-        if self.vars != other.vars: self, other = self.unify(other)
+        self, other = self.unify(other)
 
         return self.minterms() == other.minterms()
+
     def __ne__ (self, other)->bool:
         return not self == other
 
     def __contains__(self, other)->bool:
-        self, other = self.unify(other)
-        return self.minterms() >= other.minterms()
+        return self >= other
 
     def __hash__(self) -> int:
         string = str(self)
@@ -369,13 +362,16 @@ class LogicExpression:
 
     def __le__ (self, other)->bool:# self <= other
         self, other = self.unify(other)
-        return self <= other.minterms()
+        return self.minterms() <= other.minterms()
     def __ge__ (self, other)->bool:# self >= other
-        return self > other or self == other
+        self, other = self.unify(other)
+        return self.minterms() >= other.minterms()
     def __lt__ (self, other)->bool:# self < other
-        return not self >= other
+        self, other = self.unify(other)
+        return self.minterms() < other.minterms()
     def __gt__ (self, other)->bool:# self > other
-        return not self <= other
+        self, other = self.unify(other)
+        return self.minterms() > other.minterms()
 
 
     def istautology(self)->bool:
@@ -490,7 +486,11 @@ class LogicExpression:
             else: term_index += 1
 
 
-    def distribute(self):...
+    def distribute(self):
+        if not all(l.type in ('+', '*') for l in self) or \
+        self.type not in ('+', '*'):                        return None
+
+        
 
 
     def not_not(self):
@@ -528,18 +528,20 @@ class LogicExpression:
         if self.type not in ('+','*'): return None
 
         #deletes all equals
-        i=0
-        while i < len(self):
-            j=0
-            while j < len(self):
-                if j != i:
-                    if (self[i] <= self[j] and self.type == '+') or \
-                    (self[i] >= self[j] and self.type == '*'): 
-                        del self[i]
-                        j = len(self)
-                    else: j+=1
-                else: j+=1
-            i+=1
+        i= len(self) - 1
+        while i >= 1:
+            j=i-1
+
+            isolated = self[:i]  #self.__argument without i and those just tested
+            while j >= 0 and not\
+            ((isolated[j]>= self[i] and self.type == '+') or \
+             (self[i] >= isolated[j] and self.type == '*')):
+                j -= 1
+            # if didn't arrive the start, the second condition wasn't true
+            if j != -1: del self[i] 
+
+            i-=1
+
 
     ###########################################################################
 
