@@ -17,7 +17,6 @@ class LogicExpression:
     And then, it will be able to evaluate the expression with a __call__.
     '''
     ##########################################################################
-
     '''
     Builds a new Logic Expression with the args provided.
         -if ltype is specified, args will be understood as a list of LogicExpressions
@@ -31,18 +30,16 @@ class LogicExpression:
         self.__root = root if type(root) != type(None) else self
         self.__argument : LogicExpression|str|bool|int = []
         self.__vars: list = []
-        self.type: str = ltype
+        self.__type: str = []
+
 
         if ltype != '': self.connective__init__(args)
         else:
-
             if type(args[0]) == str: 
                 if len(args[0]) > 1 : self.expr__init__(args[0])
                 elif args[0].isdigit() : self.bool__init__(int(args[0]))
                 else: self.proposition__init__(args[0])
-
             elif type(args[0]) in (bool,int): self.bool__init__(args[0])
-
             elif type(args[0]) == LogicExpression : self.copy__init__(args[0])
 
 
@@ -53,13 +50,14 @@ class LogicExpression:
     ##########################################################################
     #Proposition builder
     def proposition__init__(self, proposition:str|list|tuple):
-        self.type = 'p'
+        self.__type = 'p'
         self[0] = str(proposition)    #always is a char
         self.__vars = [proposition]
+
     ##########################################################################
     #Bool builder
     def bool__init__(self, truth:bool|int):
-        self.type = '1' if bool(truth) else '0'
+        self.__type = '1' if bool(truth) else '0'
         self[0] = bool(truth)
 
     ##########################################################################
@@ -71,29 +69,31 @@ class LogicExpression:
         #if it´s a root and it´s not on polish notation
             i=0
             while raw_expression[i] in unary_connectors:    i+=1
-            #check if it's on polish notation
+            #checks if it's on polish notation
             if raw_expression[i] not in binary_connectors: 
                 raw_expression = usual_to_polish(raw_expression)
 
-        self.type = raw_expression[0]
+        self.__type = raw_expression[0]
 
 
         #ARGUMENT'S CONSTRUCTION
 
-        #for unary connectives (!)
+        ##for unary connectives (!)
         if self.type in unary_connectors:
 
-            self[0] = LogicExpression(raw_expression[1:], root=self)
+            self[0] = LogicExpression(raw_expression[1:], self)
 
         #for binnary connectives +,*,<,>,=)
         else:   # self.type in binary_connectors:
 
-            #calculates the range of influence of the main connective
+            #LOCATES the range of the main connective
             #It's the same algorithm that we use to check if a polish expr is correct
             in_range,i = 1,1
             while in_range != 0 :
                 if raw_expression[i] in binary_connectors: in_range+=1
+
                 elif raw_expression[i] not in unary_connectors: in_range-=1
+
                 i+=1
 
             #It is divided into two parts
@@ -109,13 +109,7 @@ class LogicExpression:
     ##########################################################################
     #connective Builder (list)
     def connective__init__(self,le_list:list|tuple):
-
-        if self.type in unary_connectors: 
-            self[0] = LogicExpression(le_list[0], root=self)
-
-        else: #self.type in binary_connectors:
-            for le in le_list:  self.append(LogicExpression(le, root=self))
-
+        for le in le_list:  self.append(LogicExpression(le, root=self))
 
     ##########################################################################
     #Copy Builder   -> independent copy, (root=self)
@@ -129,20 +123,19 @@ class LogicExpression:
     #mode= 'r' (reference)-> self = reference(other)
     #mode='i' (independent)-> new LogicExpression from other
     #mode='d' (deep)-> deepcopy   (default)
-    def copy(self, other:'LogicExpression', mode:str='d')->'LogicExpression':
-        if mode not in ('d', 'r', 'i'):
-            raise ValueError(f"mode {mode} no recognised. Did you mean ('d', 'r', 'i') ?")
+    def copy(self, other:'LogicExpression'=None, mode:str='d')->'LogicExpression':
+        if type(other) == type(None): return LogicExpression(self)
 
-        self.type = other.type
+        if mode not in ('d', 'r', 'i'):
+            raise ValueError(f"mode {mode} not recognised. Did you mean ('d', 'r', 'i') ?")
+
+        self.__type = other.type
 
         self.__vars = other.__vars.copy() if mode != 'r' else other.__vars
 
-        if mode == 'r':
-            self.__root = other.__root
-        elif mode== 'd':
-            self.__root = deepcopy(other.__root)
-        else:
-            self.__root = self
+        if mode == 'i':     self.__root = self
+        elif mode== 'd':    self.__root = deepcopy(other.__root)
+        else:               self.__root = other.__root
 
         self.__argument = deepcopy(other.__argument) if mode != 'r' else other.__argument
 
@@ -150,17 +143,20 @@ class LogicExpression:
 
 
     ########Items
-
-    def vars(self)->list:   return self.__vars.copy()
-    def root(self)->'LogicExpression':  return self[-1]
-
+    @property
+    def type(self)->str:    return self.__type
+    @type.setter
+    def type(self, value:str): self.change_type(value)
+    @property
+    def vars(self)->str:    return self.__vars.copy()
+    @vars.setter
+    def vars(self, changes): self.change_vars(changes)
 
     def __len__(self)->int:
     
         if self.type in binary_connectors:
             return len(self.__argument) #it's a list
         else: return 1
-
 
     def __getitem__(self,index:int)->'LogicExpression': 
         #for Roots
@@ -184,13 +180,13 @@ class LogicExpression:
             if self.type == '!':
                 self.__argument = LogicExpression(value, root=self)
             else:   self.__argument = value
-        else: self.__argument[index] = LogicExpression(value, root=self)
-        self.find_vars()#updating the vars
 
+        else: self.__argument[index] = LogicExpression(value, root=self)
+        self.take_vars()#updating the vars
 
     def __delitem__(self,index):
         if self.type in ('p', '0', '1', '!'): del self.__argument
-        else : del self.__argument[index]
+        else :  del self.__argument[index]
 
     def __iter__(self):
         if self.type in ('p', '0', '1', '!'):
@@ -199,8 +195,9 @@ class LogicExpression:
             return iter(self.__argument)
 
     def append(self, *args):
-        if type(self.__argument) != list: return None
-        for arg in args: self.insert(len(self.__argument), arg)
+        if type(self.__argument) == list:
+            for arg in args: self.insert(len(self.__argument), arg)
+        else:   self.__argument = args[0]
 
     def insert(self, index: int, *args):
         if type(self.__argument) != list: return None
@@ -260,6 +257,16 @@ class LogicExpression:
             levels[l.depth()-1].append(l)
 
         return levels
+
+    def change_type(self, value):
+        if self.type in ('!','0','1','p') or value in ('!','0','1','p'): 
+            raise AttributeError("!, p, 0, 1 types can't change")
+        elif value not in ('>', '=', '+', '*'):
+            raise AttributeError(f"{value} is a non supported type")
+        if value in ('>', '=') and len(self) > 2:
+            raise AttributeError("implication and biconditional "+ \
+                                 f"always  have 2 arguments, it has {len(self)}")
+        self.__type = value
 
     #if changes is a dictionary, it will change (or add) the specified vars
     #if changes is a tuple or list, it will be the new vars
@@ -421,7 +428,7 @@ class LogicExpression:
 
         #REDUCES EACH < TO A >
         if self.type == '<':
-            self.type = '>'
+            self.__type = '>'
             self[0], self[1] = self[1], self[0]
 
         #simplify 0's and 1's
@@ -429,12 +436,12 @@ class LogicExpression:
 
     def strange_types(self):
 
-        if self.type == '⊕': self.type = '='
-        elif self.type == '↛': self.type = '>'
-        elif self.type == '↑': self.type = '*'
-        elif self.type == '↓': self.type = '+'
+        if self.type == '⊕': self.__type = '='
+        elif self.type == '↛': self.__type = '>'
+        elif self.type == '↑': self.__type = '*'
+        elif self.type == '↓': self.__type = '+'
         elif self.type == '↚':
-            self.type = '<'
+            self.__type = '<'
             self[0], self[1] = self[1], self[0]
 
         self.copy(-self,'r')
@@ -504,31 +511,25 @@ class LogicExpression:
 
     def not_not(self):
         if self.type == '!' and self[0].type == '!':
-            self[0][0].__root = self.__root
-            self.copy(self[0][0], 'r')
-
-
+            self[0] = self[0][0]
+            self[0].__root = self
 
 
     def de_morgan(self, full=False):
 
-
         if self.type == '!' and self[0].type in ('*','+'):
-            if self[0].type == '!': self = self[0]
-            else:
-                self[0].de_morgan()
-                self.not_not()
-        
+            self[0].de_morgan()
+            self.not_not()
 
         elif self.type in ('+', '*'):
 
             #Not for each component
             for i in range(len(self)):
-                self[i] = - LogicExpression(self[i], root=self)
+                self[i] = - LogicExpression(self[i], self)
 
-            self.type = '+' if self.type == '*' else '*'
+            self.__type = '+' if self.type == '*' else '*'
 
-            self.copy(- LogicExpression(self, root=self.__root), 'r')
+            self.copy(- LogicExpression(self, self.__root), 'r')
 
         #changes the refference (local change)
         if self.type == '!': self = self[0]
@@ -899,7 +900,7 @@ class ls(list):
         return string
 
     def copy(self, other=[])->'ls':
-        if other == []: return ls(*(LogicExpression(c, root=c.root) for c in self))
+        if other == []: return ls(*(LogicExpression(c,c.root) for c in self))
         else:
             self.clear()
             self.extend(other.copy())

@@ -1,0 +1,28 @@
+                                THINGS TO DO
+
+Resolver la pesadilla de la copia:
+    ver si tiene sentido la funcion copy y todos sus modos
+    ver si se puede sustituir copy por __init__
+    remodelar setitem tras ello
+
+
+
+Hacer los atributos PRIVADOS
+    Crear funciones para su acceso y alteracion
+
+
+Remodelar la logica de delitem para le binarias.
+
+
+Rehacer el not_not y de_morgan: Está mal hecho
+
+
+Definir propperties
+
+
+
+
+
+
+
+Multicore para crear le (eg: construccion de dos argumentos de forma independiente.)

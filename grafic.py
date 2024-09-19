@@ -176,7 +176,7 @@ class Panel(ft.Column):
             ft.Row(
                 controls= [
                     ft.TextField(
-                        value= "".join(self.le.vars), disabled=True
+                        value= "".join(self.le.__vars), disabled=True
                     ),
                     ft.TextField(
                         value= "value", disabled=True

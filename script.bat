@@ -1,3 +1,1 @@
-python -m venv .venv
-.venv\Scripts\activate
-flet run grafic.py
+flet run C:\Users\alvaro\Desktop\Propositional-Logic\grafic.py

@@ -19,18 +19,11 @@ lso = ls(laa[1])
 lso = list({1:2,3:4,5:6}.values())
 
 
-print(li)
-li.absorb()
-print(li)
+print (li)
+li.vars = {'a':'k','b':'f','c':'g'}
+print (li)
 
 
 end = t.time()
 print(end-start)
-
-
-
-
-
-
-
 

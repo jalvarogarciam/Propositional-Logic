@@ -16,6 +16,7 @@ all_unary_connectors= {
     '¬':'!', '~':'!', '!':'!'
 }
 
+types = ['p', '0', '1', '+', '*', '=', '>']
 connectors = list(binary_connectors) + list (unary_connectors)
 all_connectors = list(all_binary_connectors.keys()) + list (all_unary_connectors.keys())
 
