@@ -16,12 +16,13 @@ last = [la, lu]
 lsa = ls(lu, li, laa)
 lso = ls(laa[1])
 
-lso = list({1:2,3:4,5:6}.values())
+la = li[0]
+la[0] = 'ñ'
+lb = la
+lic = -li
 
+print (lic)
 
-print (li)
-li.vars = {'a':'k','b':'f','c':'g'}
-print (li)
 
 
 end = t.time()

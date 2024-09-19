@@ -1,23 +1,23 @@
                                 THINGS TO DO
 
-Resolver la pesadilla de la copia:
-    ver si tiene sentido la funcion copy y todos sus modos
-    ver si se puede sustituir copy por __init__
-    remodelar setitem tras ello
+
+redefinir el cambio de componentes:
+    *problema: para los le independientes, los cambios a si mismo tambien deben
+                afectar a su raiz, y no lo hacen
+
+Definir propperties setter
 
 
-
-Hacer los atributos PRIVADOS
-    Crear funciones para su acceso y alteracion
-
-
-Remodelar la logica de delitem para le binarias.
-
+Remodelar la logica de delitem para le binarias:
+    #Resolver la pesadilla de la copia:
+        #ver si tiene sentido la funcion copy y todos sus modos
+        #ver si se puede sustituir copy por __init__
+        remodelar setitem tras ello
 
 Rehacer el not_not y de_morgan: Está mal hecho
 
 
-Definir propperties
+
 
 
 

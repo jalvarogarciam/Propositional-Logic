@@ -30,7 +30,7 @@ class LogicExpression:
         self.__root = root if type(root) != type(None) else self
         self.__argument : LogicExpression|str|bool|int = []
         self.__vars: list = []
-        self.__type: str = []
+        self.__type: str = ltype
 
 
         if ltype != '': self.connective__init__(args)
@@ -65,7 +65,7 @@ class LogicExpression:
     def expr__init__(self, raw_expression:str|list|tuple):
 
         #ON POLISH NOTATION???
-        if self.__root is self:
+        if self.isroot():
         #if it´s a root and it´s not on polish notation
             i=0
             while raw_expression[i] in unary_connectors:    i+=1
@@ -109,37 +109,32 @@ class LogicExpression:
     ##########################################################################
     #connective Builder (list)
     def connective__init__(self,le_list:list|tuple):
-        for le in le_list:  self.append(LogicExpression(le, root=self))
+        for le in le_list:  self.append(LogicExpression(le.copy(), root=self))
 
     ##########################################################################
-    #Copy Builder   -> independent copy, (root=self)
+    #Copy Builder   -> by refference
     def copy__init__(self, other: 'LogicExpression'):
-        if self is self.__root:
-            self.copy(other, 'i')
-        else:
-            self.copy(other, 'd')
+        self.__argument = other.__argument
+        self.__vars = other.__vars
+        if self.isroot() and not other.isroot(): self.__root = other.__root
+        self.__type = other.__type
 
-    #copys other objet to self
-    #mode= 'r' (reference)-> self = reference(other)
-    #mode='i' (independent)-> new LogicExpression from other
-    #mode='d' (deep)-> deepcopy   (default)
+    '''copys other objet to self deeply or returns a deepcopy of self if 
+    'other' is not given.
+        if mode='i' (independent)-> like deep but without copying roots
+        if mode='d' (deep)-> deepcopy   (by default)'''
     def copy(self, other:'LogicExpression'=None, mode:str='d')->'LogicExpression':
-        if type(other) == type(None): return LogicExpression(self)
+        if mode not in ('d', 'i'):
+            raise ValueError(f"mode {mode} not recognised. Did you mean ('d','i') ?")
 
-        if mode not in ('d', 'r', 'i'):
-            raise ValueError(f"mode {mode} not recognised. Did you mean ('d', 'r', 'i') ?")
+        if type(other) == LogicExpression:   #modifying self if other != None
+            self.__type = other.type
+            self.__vars = other.vars
+            self.__argument = deepcopy(other.__argument)
+            self.__root = self if mode == 'i' or other.isroot() else deepcopy(other.__root) 
+            return self
+        else: return le().copy(self,mode)
 
-        self.__type = other.type
-
-        self.__vars = other.__vars.copy() if mode != 'r' else other.__vars
-
-        if mode == 'i':     self.__root = self
-        elif mode== 'd':    self.__root = deepcopy(other.__root)
-        else:               self.__root = other.__root
-
-        self.__argument = deepcopy(other.__argument) if mode != 'r' else other.__argument
-
-        return self
 
 
     ########Items
@@ -153,14 +148,12 @@ class LogicExpression:
     def vars(self, changes): self.change_vars(changes)
 
     def __len__(self)->int:
-    
-        if self.type in binary_connectors:
-            return len(self.__argument) #it's a list
-        else: return 1
+        if type(self.__argument)==list: return len(self.__argument) #for (+,*,=,>)
+        else: return 1  #for (!,p,0,1)
 
     def __getitem__(self,index:int)->'LogicExpression': 
         #for Roots
-        if type(index) == int and index < 0:    #index's type checking is for slicing
+        if type(index) == int and index < 0:  #index's type checking is for slicing
             the_root = self.__root
             i = -1
             while i > index and the_root != the_root.__root: 
@@ -195,7 +188,7 @@ class LogicExpression:
             return iter(self.__argument)
 
     def append(self, *args):
-        if type(self.__argument) == list:
+        if self.type in binary_connectors:
             for arg in args: self.insert(len(self.__argument), arg)
         else:   self.__argument = args[0]
 
@@ -237,7 +230,7 @@ class LogicExpression:
         super_leafs = ls([])
 
         for l in leafs:
-            if not (l.root is self):
+            if not l.isroot():
                 super_leafs += l.root
 
         return super_leafs
@@ -268,9 +261,9 @@ class LogicExpression:
                                  f"always  have 2 arguments, it has {len(self)}")
         self.__type = value
 
-    #if changes is a dictionary, it will change (or add) the specified vars
-    #if changes is a tuple or list, it will be the new vars
-    #PRE: vars have been taken
+    '''if changes is a dictionary, it will change (or add) the specified vars
+       if changes is a tuple or list, it will be the new vars
+    #PRE: vars have been taken'''
     def change_vars(self, changes:dict):
         if type(changes) in (list, tuple) and len(changes) < len(self.__vars): return None
 
@@ -345,8 +338,7 @@ class LogicExpression:
     def __sub__(self, other) ->'LogicExpression': return self * -(self*other)
 
     def __neg__(self) ->'LogicExpression':
-        if self.type == '!':
-            return LogicExpression(self[0])
+        print("hola")
         return LogicExpression(self, ltype='!')
     def __invert__(self) ->'LogicExpression': return - self
 
@@ -368,7 +360,7 @@ class LogicExpression:
     def __hash__(self) -> int:
         string = str(self)
 
-        while not self is self.__root:
+        while not self.isroot():
             string = str(self.__root) + string
             self = self.__root
 
@@ -407,11 +399,13 @@ class LogicExpression:
     # provided (self)
     def depth(self)->int:
         depth=0
-        while not self is self.__root:
+        while not self.isroot():
             depth+=1
             self = self.__root
         return depth
-            
+    
+
+    def isroot(self)->bool: return self is self.__root
 
     ###########################################################################
 
@@ -457,7 +451,7 @@ class LogicExpression:
                 if self.type == '+': 
                     del self[i]
                     if len(self) == 1:
-                        if not (self.__root is self):
+                        if not self.isroot():
                             self[0] = self.__root
                         self.copy(self[0])
 
@@ -472,7 +466,7 @@ class LogicExpression:
                 if self.type == '*': 
                     del self[i]
                     if len(self) == 1: 
-                        if not (self.__root is self):
+                        if not self.isroot():
                             self[0] = self.__root
                         self.copy(self[0])
 
@@ -511,8 +505,8 @@ class LogicExpression:
 
     def not_not(self):
         if self.type == '!' and self[0].type == '!':
-            self[0] = self[0][0]
-            self[0].__root = self
+            self[0][0].__root = self.__root
+            self.copy(self[0][0])
 
 
     def de_morgan(self, full=False):
@@ -799,7 +793,7 @@ class LogicExpression:
             if string[i] in notation_out: string[i] = notation_out[string[i]]
         string = "".join(string)
 
-        if not self.__root is self :
+        if not self.isroot() :
             if self.type in binary_connectors or \
             self.type == '!' and self[0].type in binary_connectors:
                 string = '(' + string + ')'
