@@ -7,21 +7,19 @@ import time as t
 
 start = t.time()
 
-la = le("(a+b)")
-laa = le('(c*((a*c)+b))>a')
-lu = le("!a")
-li = le('!b*!c*!a*!b*!c*!c*!c*!a*!c*!a')
-last = [la, lu]
+la = le('a+b')
+li = le('c+b')
+lu = le('r')
 
-lsa = ls(lu, li, laa)
-lso = ls(laa[1])
+lx = -le('(a ∨ b) ∧ (c ∨ b) ∧ r')
 
-la = li[0]
-la[0] = 'ñ'
-lb = la
-lic = -li
+print(lx[0].index(li))
 
-print (lic)
+la = -le('a+b')
+la = (-la).copy()
+print(la[0][0][-1] is la[0])
+print(la[0][0][0])
+
 
 
 

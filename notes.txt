@@ -1,6 +1,14 @@
                                 THINGS TO DO
 
 
+
+PROBLEMA: cuando cambias la raiz de una le, esta se comunica con su raiz
+            sin embargo, LA NUEVA RAIZ TAMBIEN DEBE PODERSE COMUNICAR CON LA NUEVA
+            HIJA!!!
+
+
+
+
 redefinir el cambio de componentes:
     *problema: para los le independientes, los cambios a si mismo tambien deben
                 afectar a su raiz, y no lo hacen
@@ -15,6 +23,10 @@ Remodelar la logica de delitem para le binarias:
         remodelar setitem tras ello
 
 Rehacer el not_not y de_morgan: Está mal hecho
+
+
+
+Arreglar problema de Hash: no tiene en cuenta la posicion de la leaf dentro de la root
 
 
 
