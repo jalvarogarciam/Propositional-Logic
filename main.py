@@ -11,14 +11,14 @@ la = le('a+b')
 li = le('c+b')
 lu = le('r')
 
-lx = -le('(a ∨ b) ∧ (c ∨ b) ∧ r')
+lx = le('(a ∨ b) ∧ (c ∨ b) ∧ r')
 
-print(lx[0].index(li))
+print(bool(not set({1})))
 
-la = -le('a+b')
-la = (-la).copy()
-print(la[0][0][-1] is la[0])
-print(la[0][0][0])
+
+la = le('a*b')
+
+print(lx.to_canonical_shape(False))
 
 
 
