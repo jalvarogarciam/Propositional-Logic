@@ -7,18 +7,13 @@ import time as t
 
 start = t.time()
 
-la = le('a+b')
-li = le('c+b')
-lu = le('r')
 
-lx = --le('a>b')
+lx = le("a>!(b=(!p))")
+print(lx[1])
 
-lx.not_not()
+
 
 print(lx)
-lx[0] = '0'
-print(lx())
-
 
 end = t.time()
 print(end-start)

@@ -41,7 +41,8 @@ class LogicExpression:
                 else: self.__prop_init(args[0])
             elif type(args[0]) in (bool,int): self.__bool_init(args[0])
             elif type(args[0]) == LogicExpression : self.__copy_init(args[0])
-        if root is not None: self.root = root
+        if root is not None:  self.root = root
+        
 
         self.take_vars()
 
@@ -77,7 +78,8 @@ class LogicExpression:
         #ARGUMENT'S CONSTRUCTION
         if self.type in unary_connectors:   #for unary connectives (!)
 
-            self.__args.append(LogicExpression(raw_expression[1:]))
+            self.__args = [LogicExpression(raw_expression[1:])]
+            self.__args[0].__root = self
 
         else:   #for binnary connectives +,*,<,>,=)
 
@@ -89,17 +91,21 @@ class LogicExpression:
                 elif raw_expression[i] not in unary_connectors: in_range-=1
                 i+=1
 
-            self.append( #It is divided into two parts
+            #It's divided into two parts
+            self.__args = [
                 LogicExpression(raw_expression[1:i]),
                 LogicExpression(raw_expression[i:])
-            )
+            ]
+            self.__args[0].__root = self.__args[1].__root = self
             self.strange_types()
 
         self.properties()
 
     ##########################################################################
     #connective Builder (list)
-    def __typed_init(self,args:tuple):    self.append(*args)
+    def __typed_init(self,args:tuple):
+        self.append(*args)
+        self.properties()
 
     ##########################################################################
     #Copy Builder   -> by refference
@@ -112,7 +118,7 @@ class LogicExpression:
         if mode not in ('d', 'i'):
             raise ValueError(f"mode {mode} not recognised. Did you mean ('d','i') ?")
 
-        if type(other) == LogicExpression:   #modifying self if other != None
+        if other is not None:   #modifying self
             self.__type = other.type
             self.__vars = other.vars
 
@@ -121,25 +127,34 @@ class LogicExpression:
                 if self.type not in ('p','b'): #other.__root was changed to avoid copiying it.
                     self.__args = deepcopy(other.__args)
                     for arg in self.__args: arg.__root = self #solve args refferences
-                else: self[0] = other[0]
+                else: self.__args = other.__args
                 self.__root , other.__root = self, other_real_root
             else:
                 index = other.__root.index(other, False)
                 self.__root = deepcopy(other.__root)
                 if self.type not in ('p', 'b'): 
-                    self.__args = self.__root[index].__args #just copied
+                    self.__args = self.__root.__args[index].__args #just copied
                     for arg in self.__args: arg.__root = self #solve args refferences
-                else: self.__args =  other[0]
+                else: self.__args =  other.__args
                 self.__root.__args[index] = self    #solve root's refferences
             return self
         else: return le().copy(self,mode)
+
+    def __hash__(self) -> int:
+        string = str(self)
+
+        while not self.isroot():
+            string = str(self.__root) + string
+            self = self.__root
+
+        return hash(string)
 
     #elevates a leaf to the supperior level: self = self[index] (adjusting roots)
     def up(self):
         old_root = None if self[-1].isroot() else self[-2]
         self[-1].copy(self,'i')
-        self[-1].__root = old_root if old_root is not None else self[-1]
-
+        self = self[-1]
+        self.__root = old_root if old_root is not None else self
 
 
 
@@ -172,15 +187,16 @@ class LogicExpression:
         return self.__args[index] if self.type not in ('p', 'b') else self.__args
 
     def __setitem__(self, index, value):
-        if index < 0: raise IndexError('IndexError: root assignation is not allowed')
+        if type(index) == slice: raise TypeError('slicing is not allowed')
+        if index < 0: raise IndexError('root assignation is not allowed')
 
-        if self.type in ('p', 'b'): self.__args = value #for p, 0, 1
+        if self.type in ('p', 'b'): self.__args = value #for p, b
         else: 
-            self.__args[index] = LogicExpression(value) #for binarys
+            self.__args[index] = value.copy(mode='i') #for ! + * >
             self.__args[index].__root = self
-            
-
+        
         self.take_vars()#updating the vars
+        self.properties()
 
     def __delitem__(self,index):
         if self.type in ('p', 'b'):
@@ -190,6 +206,7 @@ class LogicExpression:
         else :
             del self.__args[index]
             if len(self) == 1:  self[0].up()
+            
 
     def __iter__(self):
         if self.type in ('p', 'b'): return iter([self])
@@ -199,14 +216,17 @@ class LogicExpression:
         for arg in args: self.insert(len(self.__args), arg)
 
     def insert(self, index: int, *args):
-        if self.__type in ('b', 'p'): return None
+        if self.__type not in ('+', '*', '!'): return None
         for arg in args:
-            arg, arg.__root = LogicExpression(arg), self
-            self.__args.insert(index, arg)
+            arg = LogicExpression(arg)
+            if arg not in self.__args:
+                arg.__root = self
+                self.__args.insert(index, arg)
 
     '''Returns the index if it finds the arg referenced, -index if it finds
        an arg equal to the arg provided and None in other case.'''
     def index(self, son:'LogicExpression', p=True)->int:
+        if self.type in ('p', 'b'):     return 0 if self[0] == son[0] else -1
         i=0
         while i < len(self) and self[i] is not son: i+=1
         if i != len(self): return i
@@ -358,20 +378,20 @@ class LogicExpression:
     ###########################################################################
     #Arithmetic operators
     def __add__(self, other) ->'LogicExpression':
-        return LogicExpression(self, other, ltype='+').copy()
+        return LogicExpression(self, other, ltype='+')
     def __or__(self, other) ->'LogicExpression': return self + other
 
     def __mul__(self, other) ->'LogicExpression':
-        return LogicExpression(self, other, ltype='*').copy()
+        return LogicExpression(self, other, ltype='*')
     def __and__(self, other) ->'LogicExpression': return self * other
 
     def __xor__(self, other) ->'LogicExpression':
-        return (-self * (other)) + (self * (-other))
+        return - LogicExpression(self, other, ltype='=')
 
     def __sub__(self, other) ->'LogicExpression': return self * -(self*other)
 
     def __neg__(self) ->'LogicExpression':
-        return LogicExpression(self, ltype='!').copy()
+        return LogicExpression(self, ltype='!')
     def __invert__(self) ->'LogicExpression': return - self
 
     #Relational operators
@@ -379,24 +399,10 @@ class LogicExpression:
         if len(self)==1 and self.type==other.type: return self[0] == other[0]
         self, other = self.unify(other)
         return self.minterms() == other.minterms()
-
     def __ne__ (self, other)->bool:
         return not self == other
 
-    def __contains__(self, other)->bool:
-        return self >= other
-
-    def __hash__(self) -> int:
-        string = str(self)
-
-        while not self.isroot():
-            string = str(self.__root) + string
-            self = self.__root
-
-        return hash(string)
-
-
-
+    def __contains__(self, other)->bool: return self >= other
     def __le__ (self, other)->bool:# self <= other
         self, other = self.unify(other)
         return self.minterms() <= other.minterms()
@@ -411,16 +417,11 @@ class LogicExpression:
         return self.minterms() > other.minterms()
 
 
-    def istautology(self)->bool:
-        return len(self.maxterms()) == 0
-    def iscontradiction(self)->bool:
-        return len(self.minterms()) == 0
-    def issatisfacible(self)->bool:
-        return not self.iscontradiction()
-    def isrefutable(self)->bool:
-        return not self.istautology()
-    def iscontingent(self)->bool:
-        return self.isrefutable() and self.issatisfacible()
+    def istautology(self)->bool:        return len(self.maxterms()) == 0
+    def iscontradiction(self)->bool:    return len(self.minterms()) == 0
+    def issatisfacible(self)->bool:     return not self.iscontradiction()
+    def isrefutable(self)->bool:        return not self.istautology()
+    def iscontingent(self)->bool:       return self.isrefutable() and self.issatisfacible()
 
 
     
@@ -449,90 +450,71 @@ class LogicExpression:
         #ASOCIATIVE PROPERTY
         self.asociate()
 
+        self.absorb()
+
         #REDUCES EACH < TO A >
-        if self.type == '<':
-            self.__type = '>'
-            self[0], self[1] = self[1], self[0]
+        if self.type=='<': self.__type, self[0], self[1] = '>', self[1], self[0]
 
         #simplify 0's and 1's
         self.check_neutral_and_dominant()
 
     def strange_types(self):
-
-        if self.type == '⊕': self.__type = '='
-        elif self.type == '↛': self.__type = '>'
-        elif self.type == '↑': self.__type = '*'
-        elif self.type == '↓': self.__type = '+'
+        changes = {'⊕':'=','↛':'>','↑':'*','↓':'+'}
+        if self.type in changes.keys(): self.__type = changes[self.type]
         elif self.type == '↚':
             self.__type = '<'
             self[0], self[1] = self[1], self[0]
         else: return None
-        self.copy(-self,'r')
+        self.copy(-self)
 
 
     def check_neutral_and_dominant(self):
-        if self.type not in ('>', '*', '+'): return None
+        if self.type in ('p', 'b'): return None
 
-        i=0
-        while i<len(self):
-            if self[i].type == 'b':
-                if self.type == '>' :
-                    if self[i][0] == False and i == 0:
-                        self.__init__(1, root=self.__root) #0>alpha = 1
-                    elif i == 0 and self[i+1][0] == False:
-                        self.__init__(0, root=self.__root)  #1>0 = 0
-                elif self.type == '*':
-                    if self[i][0] == False: 
-                        self.__init__(0, root=self.__root) #a&b&...&0 = 0
-                    else:
-                        del self[i] #a&1 = a
-                        i-=1
-                else:   # self.type == '+'
-                    if self[i][0] == True: 
-                        self.__init__(1, root=self.__root) #a&b&...+1 = 1
-                    else:
-                        del self[i] #a+0 = a
-                        i-=1
-            i+=1
+        if self.type == '!' and self[0].type == 'b':
+            self.__init__(not self[0][0], root=self.root)
 
-
-                
+        elif self.type in ('>', '='):
+            if {self[1].type, self[0].type} == {'b'}:
+                self.__init__(self("mondongo"), root=self[-1])
+            elif {self[1].type, self[0].type} == {'p'} and self[1][0] == self[0][0]:
+                self.__init__(1, root=self[-1])
+            if self.type == '>' and self[0].type=='b' and self[0][0]==False :
+                self.__init__(1, root=self[-1]) #0>alpha = 1
+        else:
+            i=0
+            while i<len(self):
+                if self[i].type == 'b':
+                    if self.type == '*' and self[i][0] == False:
+                        self.__init__(0, root=self[-1]) #a&b&...&0 = 0
+                    elif self.type=='+' and self[i][0] == True:
+                        self.__init__(1, root=self[-1]) #a&b&...+1 = 1
+                    elif (self.__type=='*' and self[i][0]==True) or \
+                    (self.__type=='+' and self[i][0]==False):
+                            del self[i] #a+0 = a, a*1=a
+                            i-=1
+                i+=1
 
 
     def asociate(self):
         if self.type not in ('+','*'): return None
-
-        term_index = 0
-
-        for x in range(len(self)):
-
-            if self[term_index].type == self.type:
-
-                lenght = len(self[term_index])
-
-                i = lenght - 1
-                while i >= 0:
-                    self.insert(term_index+1, self[term_index][i])
-                    self[term_index+1].__root = self  #updates root
-                    i-=1
-                del self[term_index]
-                term_index += lenght
-
-            else: term_index += 1
+        i=0
+        while i<len(self):
+            if self[i].type == self.type:
+                self.insert(i+1,*list(self[i]))
+                lenght = len(self[i])
+                del[self[i]]
+                i+=lenght
+            else: i+=1
 
 
     def distribute(self):
         if not all(l.type in ('+', '*') for l in self) or \
         self.type not in ('+', '*'):                        return None
 
-        
-
-
     def not_not(self):
         if self.type == '!' and self[0].type == '!':
             for i in range(2):  self[0].up()
-
-
 
     def de_morgan(self, full=False):
 
@@ -541,22 +523,19 @@ class LogicExpression:
             self.not_not()
 
         elif self.type in ('+', '*'):
+            self.__type = '+' if self.type == '*' else '*'  # swap(*,+)
+            self.__init__(-self, root=self.__root)          #self = not self
+            i=0                                             #changes the sign of each arg
+            while i < len(self[0]):
+                self[0][i] = - self[0][i] 
+                i+=1
 
-            #Not for each component
-            for i in range(len(self)):
-                self[i] = - LogicExpression(self[i], self)
-
-            self.__type = '+' if self.type == '*' else '*'
-
-            self.__init__(-self, root=self.__root)
-
-        #changes the refference (local change)
-        if self.type == '!': self = self[0]
-
-        if self.type in ('*','+') and full :
-            
-            for i in range(len(self)):
-                if self[i].type=='!':  self[i].de_morgan(True)
+        if full:
+            if self.type == '!': self = self[0] #changes the refference (local change)
+            if self.type not in ('*', '+'): return None
+            for i in self:
+                if i.type=='!':  i.de_morgan(True)
+        
 
 
     def absorb(self):
@@ -585,10 +564,9 @@ class LogicExpression:
     #Truth values#############################################################
     def __call__(self,*args)->bool:
 
-        if len(args) == 0: return self.truth_board()    #le()
-        elif len(args) > 1 or len(args)==1 and type(args[0])!=dict: # le(1,0,...,1)
+        if len(args) > 1 or len(args)==1 and type(args[0])!=dict: # le(1,0,...,1)
             vars = {var:value for var,value in zip(self.__vars,args)}
-        else: vars = args[0]    #it's a dict
+        elif len(args) == 1 and type(args[0]) == dict: vars = args[0]    #it's a dict
 
         if self.type == 'p': truth = bool(vars[self[0]])
         elif self.type == 'b': truth = bool(self[0])
@@ -697,28 +675,26 @@ class LogicExpression:
 
     def __bool__(self)->bool: return self.istautology()
 
-
     def __str__(self)->str:
         string = ""
 
         if self.type in binary_connectors:
-            for l in self:  string += str(l) + ' ' + self.type + ' '
+            for l in self:  
+                if l.type in ('p', 'b') or (l.type == '!' and l[0].type == 'p'): 
+                    string += str(l) + ' ' + self.type + ' '
+                else: string += '('+str(l)+')' + ' ' + self.type + ' '
             string = string[:-3] # removes the last connective
 
         elif self.type == '!':
             if self[0].type == 'b': string+= str(int(not bool(self[0][0])))
-            else:                   string += self.type + str(self[0])
+            elif self[0].type == 'p': string += self.type + str(self[0])
+            else:   string += self.type + '('+str(self[0])+')'
 
         elif self.type in ('p','b'):
             string += self[0] if self.type == 'p' else str(int(self[0]))
 
         #changes notation
         for old, new in notation_out.items():  string = string.replace(old, new)
-
-        #Adds parentheses
-        if not self.isroot() and (self.type in binary_connectors or \
-        self.type == '!' and self[0].type in binary_connectors):
-                string = '(' + string + ')'
 
         return string
     ##########################################################################
