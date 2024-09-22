@@ -27,20 +27,21 @@ class LogicExpression:
     def __init__(self, *args, ltype='', root:"LogicExpression" = None, order:tuple=None):
         if len(args) == 0: args = [0]   #default arg
 
-        self.__root = root if root is not None else self
+        self.__root = self
         self.__args : list[LogicExpression]|str|bool = []
         self.__vars: list = []
         self.__type: str = ltype
 
 
-        if ltype != '': self.connective__init__(args)
+        if ltype != '': self.__typed_init(args)
         else:
             if type(args[0]) == str: 
-                if len(args[0]) > 1 : self.expr__init__(args[0])
-                elif args[0].isdigit() : self.bool__init__(int(args[0]))
+                if len(args[0]) > 1 : self.__expr_init(args[0])
+                elif args[0].isdigit() : self.__bool_init(int(args[0]))
                 else: self.__prop_init(args[0])
-            elif type(args[0]) in (bool,int): self.bool__init__(args[0])
-            elif type(args[0]) == LogicExpression : self.copy__init__(args[0])
+            elif type(args[0]) in (bool,int): self.__bool_init(args[0])
+            elif type(args[0]) == LogicExpression : self.__copy_init(args[0])
+        if root is not None: self.root = root
 
         self.take_vars()
 
@@ -48,19 +49,19 @@ class LogicExpression:
 
     ##########################################################################
     #Proposition builder
-    def __prop_init(self, proposition:str|list|tuple):
+    def __prop_init(self, proposition:str):
         self.__type = 'p'
-        self[0] = str(proposition)    #always is a char
+        self.__args = str(proposition)    #always is a char
 
     ##########################################################################
     #Bool builder
-    def bool__init__(self, truth:bool|int):
+    def __bool_init(self, truth:bool|int):
         self.__type = 'b'
-        self[0] = bool(truth)
+        self.__args = bool(truth)
 
     ##########################################################################
     #Expression builder
-    def expr__init__(self, raw_expression:str|list|tuple):
+    def __expr_init(self, raw_expression:str|list|tuple):
 
         #ON POLISH NOTATION???
         if self.isroot():
@@ -73,12 +74,10 @@ class LogicExpression:
 
         self.__type = raw_expression[0]
 
-
         #ARGUMENT'S CONSTRUCTION
-
         if self.type in unary_connectors:   #for unary connectives (!)
 
-            self.__args = [LogicExpression(raw_expression[1:], root=self)]
+            self.__args.append(LogicExpression(raw_expression[1:]))
 
         else:   #for binnary connectives +,*,<,>,=)
 
@@ -90,28 +89,21 @@ class LogicExpression:
                 elif raw_expression[i] not in unary_connectors: in_range-=1
                 i+=1
 
-            #It is divided into two parts
-            self.__args = [
-                LogicExpression(raw_expression[1:i], root=self),
-                LogicExpression(raw_expression[i:], root=self)
-            ]
-
+            self.append( #It is divided into two parts
+                LogicExpression(raw_expression[1:i]),
+                LogicExpression(raw_expression[i:])
+            )
             self.strange_types()
 
         self.properties()
 
     ##########################################################################
     #connective Builder (list)
-    def connective__init__(self,le_list:list|tuple):
-        self.append(*le_list)
+    def __typed_init(self,args:tuple):    self.append(*args)
 
     ##########################################################################
     #Copy Builder   -> by refference
-    def copy__init__(self, other: 'LogicExpression'):
-        self.__args = other.__args
-        self.__vars = other.__vars
-        if self.isroot() and not other.isroot(): self.__root = other.__root
-        self.__type = other.__type
+    def __copy_init(self, other: 'LogicExpression'): self.copy(other)
     '''copys other objet to self deeply or returns a deepcopy of self if 
     'other' is not given.
         if mode='i' (independent)-> like deep but without copying roots
@@ -123,16 +115,30 @@ class LogicExpression:
         if type(other) == LogicExpression:   #modifying self if other != None
             self.__type = other.type
             self.__vars = other.vars
-            self.__args = deepcopy(other.__args)
-            for l in self: l.__root = self  #it's necessary for not only copying refferences :(
-            self.__root = self if mode == 'i' or other.isroot() else deepcopy(other.__root)
-            
+
+            if mode == 'i' or other.isroot(): 
+                other_real_root, other.__root = other.__root, other
+                if self.type not in ('p','b'): #other.__root was changed to avoid copiying it.
+                    self.__args = deepcopy(other.__args)
+                    for arg in self.__args: arg.__root = self #solve args refferences
+                else: self[0] = other[0]
+                self.__root , other.__root = self, other_real_root
+            else:
+                index = other.__root.index(other, False)
+                self.__root = deepcopy(other.__root)
+                if self.type not in ('p', 'b'): 
+                    self.__args = self.__root[index].__args #just copied
+                    for arg in self.__args: arg.__root = self #solve args refferences
+                else: self.__args =  other[0]
+                self.__root.__args[index] = self    #solve root's refferences
             return self
         else: return le().copy(self,mode)
 
     #elevates a leaf to the supperior level: self = self[index] (adjusting roots)
     def up(self):
-        self[-1].__init__(self, root= self[-2] if not self[-1].isroot() else None)
+        old_root = None if self[-1].isroot() else self[-2]
+        self[-1].copy(self,'i')
+        self[-1].__root = old_root if old_root is not None else self[-1]
 
 
 
@@ -146,6 +152,11 @@ class LogicExpression:
     def vars(self)->str:    return self.__vars.copy()
     @vars.setter
     def vars(self, changes): self.change_vars(changes)
+    @property
+    def root(self)->'LogicExpression':  return self.__root.copy()
+    @root.setter
+    def root(self, value:'LogicExpression'): self.change_root(value)
+
 
     def __len__(self)->int:
         if type(self.__args)==list: return len(self.__args) #for (+,*,=,>)
@@ -164,7 +175,10 @@ class LogicExpression:
         if index < 0: raise IndexError('IndexError: root assignation is not allowed')
 
         if self.type in ('p', 'b'): self.__args = value #for p, 0, 1
-        else: self.__args[index] = LogicExpression(value, root=self) #for binarys
+        else: 
+            self.__args[index] = LogicExpression(value) #for binarys
+            self.__args[index].__root = self
+            
 
         self.take_vars()#updating the vars
 
@@ -187,17 +201,20 @@ class LogicExpression:
     def insert(self, index: int, *args):
         if self.__type in ('b', 'p'): return None
         for arg in args:
-            self.__args.insert(index, LogicExpression(arg, root=self))
+            arg, arg.__root = LogicExpression(arg), self
+            self.__args.insert(index, arg)
 
     '''Returns the index if it finds the arg referenced, -index if it finds
        an arg equal to the arg provided and None in other case.'''
-    def index(self, son:'LogicExpression')->int:
+    def index(self, son:'LogicExpression', p=True)->int:
         i=0
         while i < len(self) and self[i] is not son: i+=1
         if i != len(self): return i
-        i=0
-        while i < len(self) and self[i] != son: i+=1
-        return -i if i != len(self) else None
+        if p:
+            i=0
+            while i < len(self) and self[i] != son: i+=1
+            if i != len(self): return -i
+        return None
     ##########################################################################
     ##########################################################################
     def take_vars(self):
@@ -253,6 +270,21 @@ class LogicExpression:
 
         return levels
 
+    '''
+    If the root provided contains a reference to the objet, root will be changed normally.
+    If the root only contains a le equal (logicaly and on his shape) to the objet,
+       it will be replaced by self.
+    Else, root won't be replaced.
+    '''
+    def change_root(self, root:'LogicExpression')->bool:
+        index = root.index(self)
+        if index is not None:
+            if index >= 0 : self.__root = root
+            else:
+                self.__root = root.copy()
+                self.__root.__args[-index] = self
+        return index is not None
+
     def change_type(self, value):
         if not {value,self.type} < ('>', '=', '+', '*'): # if value and index not in those types...
             raise AttributeError(f"type change can't be done between {value} and {self.type}")
@@ -293,7 +325,6 @@ class LogicExpression:
                 leaf.take_vars()
 
 
-
     # adds {amount} random vars, default 1
     def add_var(self, amount=1):
         i = 0
@@ -302,6 +333,7 @@ class LogicExpression:
             if var not in self.__vars:
                 self.__vars += [var] 
                 i+=1
+
 
     # returns two LE with the same vars' list
     def unify(self, other:'LogicExpression', modifying=False) -> tuple:
@@ -400,7 +432,7 @@ class LogicExpression:
             depth+=1
             self = self.__root
         return depth
-    
+
 
     def isroot(self)->bool: return self is self.__root
 
@@ -498,8 +530,7 @@ class LogicExpression:
 
     def not_not(self):
         if self.type == '!' and self[0].type == '!':
-            self[0][0].up()
-            self[0][0].up()
+            for i in range(2):  self[0].up()
 
 
 

@@ -11,16 +11,13 @@ la = le('a+b')
 li = le('c+b')
 lu = le('r')
 
-lx = le('(a ∨ b) ∧ (c ∨ b) ∧ r')
+lx = --le('a>b')
 
-print(bool(not set({1})))
+lx.not_not()
 
-
-la = le('a*b')
-
-print(lx.to_canonical_shape(False))
-
-
+print(lx)
+lx[0] = '0'
+print(lx())
 
 
 end = t.time()
