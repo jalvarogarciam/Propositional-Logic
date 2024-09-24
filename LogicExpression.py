@@ -219,22 +219,24 @@ class LogicExpression:
         for arg in args: self.insert(len(self.__args), arg)
 
     def insert(self, index: int, *args):
-        if self.__type not in ('+', '*'): return None
+        if self.__type not in ('+', '*', '!'): return None
         for arg in args:
-            arg, arg.__root = arg.copy(mode='i'), self
-            self.__args.insert(index, arg)
+            arg = LogicExpression(arg)
+            if arg not in list(self):
+                arg.__root = self
+                self.__args.insert(index, arg)
 
     '''Returns the index if it finds the arg referenced, -index if it finds
        an arg equal to the arg provided and None in other case.'''
     def index(self, son:'LogicExpression', p=True)->int:
-        if self.type in ('p', 'b'):     return 0 if self[0] == son[0] else -1
+        if self.type in ('p', 'b'): return -1 if self[0] == son[0] else None
         i=0
         while i < len(self) and self[i] is not son: i+=1
         if i != len(self): return i
         if p:
             i=0
             while i < len(self) and str(self[i]) != str(son): i+=1
-            if i != len(self): return -i
+            if i != len(self): return -(i+1)
         return None
     ##########################################################################
     ##########################################################################
@@ -243,7 +245,7 @@ class LogicExpression:
         elif self.type != 'b':
             for l in self:
                 for var in l.__vars: 
-                    self.__vars += var if var not in self.__vars else []
+                    if var not in self.__vars: self.__vars += var
 
     def find_vars(self, leafs=[]):
         self.__vars = []
@@ -258,7 +260,6 @@ class LogicExpression:
         leafs = []
 
         if self.type in ('p', 'b'):    leafs.append(self)
-
         elif self.type in binary_connectors:
             for l in self:  leafs += l.get_leafs()
 
@@ -270,8 +271,7 @@ class LogicExpression:
         super_leafs = ls([])
 
         for l in leafs:
-            if not l.isroot():
-                super_leafs += l.__root
+            if not l.isroot():  super_leafs += l.__root
 
         return super_leafs
 
@@ -297,6 +297,7 @@ class LogicExpression:
        it will be replaced by self.
     Else, root won't be replaced.'''
     def change_root(self, root:'LogicExpression')->bool:
+        
         index = root.index(self)
         if index is not None:
             if index >= 0 : self.__root = root
