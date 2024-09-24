@@ -5,26 +5,25 @@ dec_binbol, all_connectors, variables, notation_out
 from copy import deepcopy
 import random
 
-#from LogicSet import LogicSet as ls
+#from LogicSet import LogicSet as ls    
+
 class LogicExpression:
     '''
-    The shape of LogicExpression's are like a "tree of expression". But, the main
-    type is a Unary or Binary Connective. 
-
-    ex:CONNECTIVE(CONNECTIVE(CONNECTIVE(...),CONNECTIVE(...))) on his leafs, we can
-    found bool vars x,y,z...
-
-    And then, it will be able to evaluate the expression with a __call__.
+    The shape of LogicExpression's are like a "tree of expressions" where each one
+    is connected with its leafs and its root. 
+    The types allowed are Unary(!) or Binary Connective(+,*,>,=), a proposition(p), 
+    or a bool(b). 
     '''
     ##########################################################################
-    '''
+
+    def __init__(self, *args, ltype='', root:"LogicExpression" = None, order:tuple=None):
+        '''
     Builds a new Logic Expression with the args provided.
         -if ltype is specified, args will be understood as a list of LogicExpressions
         -if order is specified, it will be the vars' list
-        -if root is provided, it will be the instance's root
-            PRE:self must be a part of it's argument
-    '''
-    def __init__(self, *args, ltype='', root:"LogicExpression" = None, order:tuple=None):
+        -if root is provided, it will be the instance's root if self is a part of
+        its argument.
+    '''    
         if len(args) == 0: args = [0]   #default arg
 
         self.__root = self
@@ -42,7 +41,6 @@ class LogicExpression:
             elif type(args[0]) in (bool,int): self.__bool_init(args[0])
             elif type(args[0]) == LogicExpression : self.__copy_init(args[0])
         if root is not None:  self.root = root
-        
 
         self.take_vars()
 
@@ -110,11 +108,12 @@ class LogicExpression:
     ##########################################################################
     #Copy Builder   -> by refference
     def __copy_init(self, other: 'LogicExpression'): self.copy(other)
-    '''copys other objet to self deeply or returns a deepcopy of self if 
-    'other' is not given.
-        if mode='i' (independent)-> like deep but without copying roots
-        if mode='d' (deep)-> deepcopy   (by default)'''
     def copy(self, other:'LogicExpression'=None, mode:str='d')->'LogicExpression':
+        '''copys other objet to self deeply or returns a deepcopy of self if 
+        'other' is not given.\n
+            if mode='i' (independent)-> like deep but without copying roots.\n
+            if mode='d' (deep)-> deepcopy   (by default).
+        '''
         if mode not in ('d', 'i'):
             raise ValueError(f"mode {mode} not recognised. Did you mean ('d','i') ?")
 
@@ -141,13 +140,17 @@ class LogicExpression:
         else: return le().copy(self,mode)
 
     def __hash__(self) -> int:
-        string = str(self)
-
-        while not self.isroot():
-            string = str(self.__root) + string
-            self = self.__root
-
-        return hash(string)
+        '''It's based on the coordinates from the root to self and 
+        the str representation of the main root'''
+        if self.isroot():   components = ('R', str(self))
+        else:
+            indexes = []
+            current = self
+            while not current.isroot():
+                indexes += [current.__root.index(current)]
+                current = current.__root
+            components = (tuple(indexes), str(current))
+        return hash(components)
 
     #elevates a leaf to the supperior level: self = self[index] (adjusting roots)
     def up(self):
@@ -190,9 +193,9 @@ class LogicExpression:
         if type(index) == slice: raise TypeError('slicing is not allowed')
         if index < 0: raise IndexError('root assignation is not allowed')
 
-        if self.type in ('p', 'b'): self.__args = value #for p, b
+        if self.type in ('p', 'b'): self.__args = value
         else: 
-            self.__args[index] = value.copy(mode='i') #for ! + * >
+            self.__args[index] = value.copy(mode='i')
             self.__args[index].__root = self
         
         self.take_vars()#updating the vars
@@ -294,9 +297,9 @@ class LogicExpression:
     If the root provided contains a reference to the objet, root will be changed normally.
     If the root only contains a le equal (logicaly and on his shape) to the objet,
        it will be replaced by self.
-    Else, root won't be replaced.
-    '''
+    Else, root won't be replaced.'''
     def change_root(self, root:'LogicExpression')->bool:
+        
         index = root.index(self)
         if index is not None:
             if index >= 0 : self.__root = root
@@ -306,7 +309,7 @@ class LogicExpression:
         return index is not None
 
     def change_type(self, value):
-        if not {value,self.type} < ('>', '=', '+', '*'): # if value and index not in those types...
+        if not {value,self.type} < {'>', '=', '+', '*'}: # if value and type not in those types...
             raise AttributeError(f"type change can't be done between {value} and {self.type}")
         if value in ('>', '=') and len(self) > 2:
             raise AttributeError("implication and biconditional "+ \
@@ -314,12 +317,12 @@ class LogicExpression:
         self.__type = value
 
     '''if changes is a dictionary, it will change (or add) the specified vars
-       if changes is a tuple or list, it will be the new vars
-    #PRE: vars have been taken'''
+       if changes is a tuple or list, it will be the new vars'''
     def change_vars(self, changes:dict):
         if type(changes) in (list, tuple) and len(changes) < len(self.__vars): return None
 
         leafs = self.get_leafs()
+        self.find_vars(leafs)
         new_vars = {i:i for i in self.__vars}
 
         #creates the dictionary whith old_var_name:new_var_name
@@ -347,18 +350,16 @@ class LogicExpression:
 
     # adds {amount} random vars, default 1
     def add_var(self, amount=1):
-        i = 0
-        while i < amount:
+        new_len = len(self.vars)+amount
+        while len(self.vars) < new_len:
             var = random.choice(variables)
-            if var not in self.__vars:
-                self.__vars += [var] 
-                i+=1
+            if var not in self.__vars:  self.__vars += [var]
+
 
 
     # returns two LE with the same vars' list
     def unify(self, other:'LogicExpression', modifying=False) -> tuple:
-        if self.__vars == other.__vars : return self, other 
-        #if they have the same vars with the same order
+        if self.__vars == other.__vars : return self, other
 
         #creates a new le adding necessary vars to compare
         new_self, new_other = self.copy(), other.copy()#there isn't repeated vars
@@ -369,7 +370,7 @@ class LogicExpression:
         return ([new_self, new_other])
 
     def order(self, *order)->list:
-        if len(order) >= len(self.__vars()): self.__vars = list(order).copy()
+        if set(order) >= set(self.__vars): self.__vars = list(order).copy()
         return self.vars
 
 
@@ -424,7 +425,6 @@ class LogicExpression:
     def iscontingent(self)->bool:       return self.isrefutable() and self.issatisfacible()
 
 
-    
     #depth is defined as the number of steps between the main root and the leaf 
     # provided (self)
     def depth(self)->int:

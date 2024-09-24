@@ -9,7 +9,7 @@ start = t.time()
 
 
 lx = le("a>!(b=(!p))")
-print(lx[1])
+print(hash(lx[0]))
 
 
 
