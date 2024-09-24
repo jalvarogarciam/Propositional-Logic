@@ -122,12 +122,14 @@ class LogicExpression:
             self.__vars = other.vars
 
             if mode == 'i' or other.isroot(): 
-                other_real_root, other.__root = other.__root, other
-                if self.type not in ('p','b'): #other.__root was changed to avoid copiying it.
+                other_real_root, other.__root = other.__root, None
+                if self.type not in ('p','b'): #other.__root was temporaly changed to avoid copiying it.
+                    for arg in other.__args: arg.__root = None #args root are temporaly changed to avoid copiying it
                     self.__args = deepcopy(other.__args)
                     for arg in self.__args: arg.__root = self #solve args refferences
-                else: self.__args = other.__args
-                self.__root , other.__root = self, other_real_root
+                    for arg in other.__args: arg.__root = other #restore other's args' root refference
+                else: self.__args = other.__args    #both are unvariale types
+                self.__root , other.__root = self, other_real_root #restore other's root refference
             else:
                 index = other.__root.index(other, False)
                 self.__root = deepcopy(other.__root)

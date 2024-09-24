@@ -8,7 +8,7 @@ import time as t
 start = t.time()
 
 
-lx = le("a>!(b=(!p))")
+lx = le("a>!(b=(!p))").copy(mode='i')
 print(hash(lx[0]))
 
 
