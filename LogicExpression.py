@@ -124,20 +124,20 @@ class LogicExpression:
             if mode == 'i' or other.isroot(): 
                 other_real_root, other.__root = other.__root, None
                 if self.type not in ('p','b'): #other.__root was temporaly changed to avoid copiying it.
-                    for arg in other.__args: arg.__root = None #args root are temporaly changed to avoid copiying it
+                    for arg in other: arg.__root = None #args root are temporaly changed to avoid copiying it
                     self.__args = deepcopy(other.__args)
-                    for arg in self.__args: arg.__root = self #solve args refferences
-                    for arg in other.__args: arg.__root = other #restore other's args' root refference
+                    for arg in self: arg.__root = self #solve args refferences
+                    for arg in other: arg.__root = other #restore other's args' root refference
                 else: self.__args = other.__args    #both are unvariale types
                 self.__root , other.__root = self, other_real_root #restore other's root refference
             else:
                 index = other.__root.index(other, False)
                 self.__root = deepcopy(other.__root)
                 if self.type not in ('p', 'b'): 
-                    self.__args = self.__root.__args[index].__args #just copied
-                    for arg in self.__args: arg.__root = self #solve args refferences
+                    self.__args = self[-1][index].__args #just copied
+                    for arg in self: arg.__root = self #solve args refferences
                 else: self.__args =  other.__args
-                self.__root.__args[index] = self    #solve root's refferences
+                self[-1][index] = self    #solve root's refferences
             return self
         else: return le().copy(self,mode)
 
@@ -193,25 +193,23 @@ class LogicExpression:
 
     def __setitem__(self, index, value):
         if type(index) == slice: raise TypeError('slicing is not allowed')
-        if index < 0: raise IndexError('root assignation is not allowed')
+        elif index < 0: raise IndexError('root assignation is not allowed')
 
-        if self.type in ('p', 'b'): self.__args = value
+        elif self.type in ('p', 'b'): self.__args = value
         else: 
             self.__args[index] = value.copy(mode='i')
             self.__args[index].__root = self
-        
-        self.take_vars()#updating the vars
-        self.properties()
+        self.take_vars()                        #updating the vars
+
 
     def __delitem__(self,index):
         if self.type in ('p', 'b'):
-            raise Exception(f"single types component like '{self.type}' can't be deleted")
+            raise Exception(f"single types' components like '{self.type}' can't be deleted")
         elif self.type == '!':
             del self.__args[0][index]
         else :
             del self.__args[index]
             if len(self) == 1:  self[0].up()
-            
 
     def __iter__(self):
         if self.type in ('p', 'b'): return iter([self])
@@ -221,12 +219,10 @@ class LogicExpression:
         for arg in args: self.insert(len(self.__args), arg)
 
     def insert(self, index: int, *args):
-        if self.__type not in ('+', '*', '!'): return None
+        if self.__type not in ('+', '*'): return None
         for arg in args:
-            arg = LogicExpression(arg)
-            if arg not in self.__args:
-                arg.__root = self
-                self.__args.insert(index, arg)
+            arg, arg.__root = arg.copy(mode='i'), self
+            self.__args.insert(index, arg)
 
     '''Returns the index if it finds the arg referenced, -index if it finds
        an arg equal to the arg provided and None in other case.'''
@@ -237,7 +233,7 @@ class LogicExpression:
         if i != len(self): return i
         if p:
             i=0
-            while i < len(self) and self[i] != son: i+=1
+            while i < len(self) and str(self[i]) != str(son): i+=1
             if i != len(self): return -i
         return None
     ##########################################################################
@@ -301,7 +297,6 @@ class LogicExpression:
        it will be replaced by self.
     Else, root won't be replaced.'''
     def change_root(self, root:'LogicExpression')->bool:
-        
         index = root.index(self)
         if index is not None:
             if index >= 0 : self.__root = root

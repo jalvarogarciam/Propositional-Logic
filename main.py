@@ -7,9 +7,9 @@ import time as t
 
 start = t.time()
 
-
+la = le('a')
 lx = le("a>!(b=(!p))").copy(mode='i')
-print(hash(lx[0]))
+print(lx.index(la))
 
 
 
