@@ -8,8 +8,9 @@ import time as t
 start = t.time()
 
 la = le('a')
-lx = le("a>!(b=(!p))").copy(mode='i')
-print(lx.index(la))
+lx = le("a+!(b=(!p))").copy(mode='i')
+lx.append(la)
+print(lx.copy())
 
 
 
